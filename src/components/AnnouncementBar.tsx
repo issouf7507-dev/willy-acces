@@ -1,0 +1,22 @@
+const messages = [
+  'FREE US SHIPPING ON ORDERS $110+',
+  'CARRY WHAT YOU NEED FOR EVERY MEETUP',
+  'NEW ARRIVALS JUST DROPPED',
+]
+
+export default function AnnouncementBar() {
+  const items = [...messages, ...messages, ...messages]
+
+  return (
+    <div className="bg-zinc-900 text-white py-2.5 overflow-hidden">
+      <div className="flex animate-marquee whitespace-nowrap">
+        {items.map((msg, i) => (
+          <span key={i} className="flex items-center shrink-0">
+            <span className="text-xs font-bold uppercase tracking-widest px-8">{msg}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-white/40 shrink-0" />
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
