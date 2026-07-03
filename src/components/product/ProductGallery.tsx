@@ -36,7 +36,10 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (startXRef.current === null) return
     const diff = startXRef.current - e.changedTouches[0].clientX
-    if (Math.abs(diff) > 40) diff > 0 ? next() : prev()
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) next()
+      else prev()
+    }
     startXRef.current = null
   }
 

@@ -12,7 +12,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -167,9 +167,9 @@ export default function Dashboard() {
                   <span className="text-emerald-600 font-semibold">+12%</span> vs mois dernier
                 </p>
               </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/admin/orders">Voir commandes</Link>
-              </Button>
+              <Link to="/admin/orders" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+                Voir commandes
+              </Link>
             </div>
           </CardContent>
           {/* Décoratif */}
@@ -256,7 +256,7 @@ export default function Dashboard() {
                 <XAxis dataKey="mois" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
                 <Tooltip
                   contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
-                  formatter={(v: number) => [v + ' commandes', '']}
+                  formatter={(v) => [`${Number(v)} commandes`, '']}
                 />
                 <Bar dataKey="commandes" fill="oklch(0.205 0 0)" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -285,7 +285,7 @@ export default function Dashboard() {
                 <XAxis dataKey="mois" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
                 <Tooltip
                   contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
-                  formatter={(v: number) => [fmtShort(v), 'CA']}
+                  formatter={(v) => [fmtShort(Number(v)), 'CA']}
                 />
                 <Line type="monotone" dataKey="ca" stroke="oklch(0.205 0 0)" strokeWidth={2} dot={false} />
               </LineChart>
@@ -301,11 +301,9 @@ export default function Dashboard() {
         <Card className="lg:col-span-7">
           <CardHeader className="flex-row items-center justify-between pb-3">
             <CardTitle className="text-base">Dernières commandes</CardTitle>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/admin/orders" className="gap-1">
-                Voir tout <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
+            <Link to="/admin/orders" className={buttonVariants({ variant: 'outline', size: 'sm', className: 'gap-1' })}>
+              Voir tout <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </CardHeader>
           <CardContent className="p-0">
             {orders.length === 0 ? (
