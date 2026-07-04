@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent, type DragEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent, type MouseEvent, type DragEvent } from 'react'
 import { api } from '../../lib/api'
 import { useEdgeStore } from '../../lib/edgestore'
 import { X, Loader2, Upload, Trash2, ImagePlus } from 'lucide-react'
@@ -44,7 +44,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     compareAtPrice: String(product?.compareAtPrice ?? ''),
     stock: String(product?.stock ?? '0'),
     sku: product?.sku ?? '',
-    categoryId: (product as any)?.categoryId ?? '',
+    categoryId: product?.categoryId ?? '',
     isActive: product?.isActive ?? true,
     isFeatured: product?.isFeatured ?? false,
   })
@@ -120,7 +120,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     setImages((prev) => prev.filter((_, j) => j !== idx))
   }
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent | MouseEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -302,7 +302,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             Annuler
           </button>
           <button
-            onClick={(e) => handleSubmit(e as any)}
+            onClick={(e) => handleSubmit(e)}
             disabled={loading || hasUploading}
             className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
           >

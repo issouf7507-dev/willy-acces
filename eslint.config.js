@@ -18,5 +18,12 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Règles dev/HMR ou stylistiques : gardées visibles en warning mais non bloquantes en CI.
+      // - only-export-components : concerne uniquement le Fast Refresh (cva variants, hooks de contexte).
+      // - set-state-in-effect : le pattern fetch-on-mount / reset-on-prop change est légitime ici.
+      'react-refresh/only-export-components': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+    },
   },
 ])

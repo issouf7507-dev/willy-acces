@@ -17,7 +17,7 @@ interface Category {
 
 function buildCategories(): Category[] {
   const defs = [
-    { id: 'all',       label: 'Tous',          filter: (_: BagProduct) => true },
+    { id: 'all',       label: 'Tous',          filter: () => true },
     { id: 'sacs',      label: 'Sacs à dos',    filter: (p: BagProduct) => p.name.toLowerCase().includes('pack') },
     { id: 'slings',    label: 'Slings',         filter: (p: BagProduct) => p.name.toLowerCase().includes('sling') },
     { id: 'messagers', label: 'Messagers',      filter: (p: BagProduct) => p.name.toLowerCase().includes('messenger') },
