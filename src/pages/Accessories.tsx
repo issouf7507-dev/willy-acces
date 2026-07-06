@@ -3,76 +3,19 @@ import { Link } from 'react-router-dom'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import CollectionProductCard from '../components/collection/CollectionProductCard'
-import { SORT_OPTIONS, type BagProduct } from '../data/bags'
-import { fetchBags } from '../lib/storefront'
+import AccessoryCard from '../components/accessories/AccessoryCard'
+import { ACCESSORY_CATEGORIES, ACCESSORY_SORT_OPTIONS, type AccessoryProduct } from '../data/accessories'
+import { fetchAccessories } from '../lib/storefront'
 
 const PAGE_SIZE = 12
 
-interface Category {
-  id: string
-  label: string
-  count: number
-  filter: (p: BagProduct) => boolean
-}
-
-const CATEGORY_DEFS: { id: string; label: string; filter: (p: BagProduct) => boolean }[] = [
-  { id: 'all',       label: 'Tous',          filter: () => true },
-  { id: 'sacs',      label: 'Sacs à dos',    filter: (p) => p.name.toLowerCase().includes('pack') },
-  { id: 'slings',    label: 'Slings',         filter: (p) => p.name.toLowerCase().includes('sling') },
-  { id: 'messagers', label: 'Messagers',      filter: (p) => p.name.toLowerCase().includes('messenger') },
-  { id: 'velo',      label: 'Vélo',           filter: (p) => p.tags.includes('bike bag') },
-  { id: 'pochettes', label: 'Pochettes',      filter: (p) => p.name.toLowerCase().includes('pouch') || p.name.toLowerCase().includes('flap') },
+const TABS = [
+  { id: 'all', label: 'Tous' },
+  ...ACCESSORY_CATEGORIES.map(c => ({ id: c.id, label: c.label })),
 ]
 
-function Stars({ rating }: { rating: number }) {
-  const n = Math.round(rating)
-  return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }, (_, i) => (
-        <svg key={i} width="9" height="9" viewBox="0 0 15 15" className={i < n ? 'text-zinc-800' : 'text-zinc-200'} fill="currentColor">
-          <path d="M7.5 0L9.586 5.273L15 5.73L10.875 9.445L12.135 15L7.5 12.023L2.865 15L4.125 9.445L0 5.73L5.414 5.273L7.5 0Z" />
-        </svg>
-      ))}
-    </div>
-  )
-}
-
-function BestSellersStrip({ products }: { products: BagProduct[] }) {
-  const top = useMemo(() => [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 4), [products])
-  if (top.length === 0) return null
-  return (
-    <section className="border-b border-zinc-100">
-      <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-10">
-        <div className="flex items-end justify-between mb-6">
-          <h2 className="text-xl font-black uppercase tracking-tight">Meilleures ventes</h2>
-          <Link to="/collections/bags" className="text-xs font-bold uppercase tracking-wide text-zinc-500 hover:text-black transition-colors underline underline-offset-2">
-            Voir tout
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {top.map(p => (
-            <Link key={p.id} to={`/products/${p.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`} className="group">
-              <div className={`aspect-square bg-gradient-to-br ${p.gradientFrom} ${p.gradientTo} mb-3 overflow-hidden flex items-center justify-center`}>
-                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.6" opacity="0.2" className="transition-transform duration-500 group-hover:scale-110">
-                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 01-8 0" />
-                </svg>
-              </div>
-              <p className="text-xs font-bold uppercase tracking-wide truncate group-hover:underline">{p.name}</p>
-              <div className="flex items-center justify-between mt-0.5">
-                <Stars rating={p.rating} />
-                <span className="text-xs text-zinc-500">${p.price}</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-export default function Products() {
-  const [products, setProducts] = useState<BagProduct[]>([])
+export default function Accessories() {
+  const [products, setProducts] = useState<AccessoryProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
@@ -81,28 +24,28 @@ export default function Products() {
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    fetchBags()
+    fetchAccessories()
       .then(setProducts)
-      .catch(() => setError('Impossible de charger les produits.'))
+      .catch(() => setError('Impossible de charger les accessoires.'))
       .finally(() => setLoading(false))
   }, [])
 
-  const CATEGORIES: Category[] = useMemo(
-    () => CATEGORY_DEFS.map(d => ({ ...d, count: products.filter(d.filter).length })),
-    [products]
-  )
-
-  const activeCat = CATEGORIES.find(c => c.id === activeCategory) ?? CATEGORIES[0]
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: products.length }
+    for (const c of ACCESSORY_CATEGORIES) {
+      map[c.id] = products.filter(p => p.category === c.id).length
+    }
+    return map
+  }, [products])
 
   const filtered = useMemo(() => {
-    let result = products.filter(activeCat?.filter ?? (() => true))
+    let result = activeCategory === 'all'
+      ? [...products]
+      : products.filter(p => p.category === activeCategory)
 
     if (search.trim()) {
       const q = search.toLowerCase()
-      result = result.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.tags.some(t => t.toLowerCase().includes(q))
-      )
+      result = result.filter(p => p.name.toLowerCase().includes(q))
     }
 
     switch (sortBy) {
@@ -112,7 +55,7 @@ export default function Products() {
       case 'reviews':    result = [...result].sort((a, b) => b.reviews - a.reviews); break
     }
     return result
-  }, [products, activeCategory, sortBy, search, activeCat])
+  }, [products, activeCategory, sortBy, search])
 
   const displayed = filtered.slice(0, page * PAGE_SIZE)
   const hasMore = displayed.length < filtered.length
@@ -132,34 +75,28 @@ export default function Products() {
         <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-16 md:py-24">
           <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-4">Boutique</p>
           <h1 className="text-5xl md:text-7xl font-black uppercase leading-none mb-4">
-            Tous les<br />
-            <span className="text-zinc-400">produits</span>
+            Accessoires
           </h1>
           <p className="text-sm text-zinc-400 max-w-sm mt-6">
-            {products.length} articles — sacs, slings, messagers et accessoires pour le quotidien.
+            {products.length} articles — porte-clés, sangles, casquettes et tout ce qui complète votre équipement.
           </p>
         </div>
-        {/* Decorative gradient circles */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-zinc-800 rounded-full blur-3xl opacity-50 translate-x-1/2 -translate-y-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-zinc-700 rounded-full blur-3xl opacity-30 translate-y-1/2 pointer-events-none" />
       </section>
-
-      {/* Best sellers strip */}
-      <BestSellersStrip products={products} />
 
       {/* Main catalog */}
       <section className="max-w-[1600px] mx-auto px-5 md:px-12 py-10">
 
         {/* Search + Sort row */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          {/* Search */}
           <div className="relative flex-1 max-w-sm">
             <svg width="16" height="16" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
               <circle cx="11" cy="10" r="7" /><path d="m16 15 3 3" strokeLinecap="round" />
             </svg>
             <input
               type="text"
-              placeholder="Rechercher un produit…"
+              placeholder="Rechercher un accessoire…"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
               className="w-full pl-9 pr-4 py-2.5 text-sm border border-zinc-200 focus:border-black focus:outline-none bg-zinc-50 focus:bg-white transition-colors"
@@ -181,7 +118,7 @@ export default function Products() {
               onChange={e => { setSortBy(e.target.value); setPage(1) }}
               className="text-sm border border-zinc-200 px-3 py-2.5 focus:outline-none focus:border-black bg-white cursor-pointer"
             >
-              {SORT_OPTIONS.map(o => (
+              {ACCESSORY_SORT_OPTIONS.map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
@@ -190,19 +127,19 @@ export default function Products() {
 
         {/* Category tabs */}
         <div className="flex gap-0 mb-8 overflow-x-auto scrollbar-hide border-b border-zinc-100">
-          {CATEGORIES.map(cat => (
+          {TABS.map(tab => (
             <button
-              key={cat.id}
-              onClick={() => handleCategoryChange(cat.id)}
+              key={tab.id}
+              onClick={() => handleCategoryChange(tab.id)}
               className={`flex-shrink-0 px-4 py-3 text-xs font-bold uppercase tracking-wide transition-all border-b-2 -mb-px ${
-                activeCategory === cat.id
+                activeCategory === tab.id
                   ? 'border-black text-black'
                   : 'border-transparent text-zinc-400 hover:text-black hover:border-zinc-300'
               }`}
             >
-              {cat.label}
-              <span className={`ml-1.5 text-[10px] ${activeCategory === cat.id ? 'text-zinc-500' : 'text-zinc-300'}`}>
-                {cat.id === 'all' ? products.length : cat.count}
+              {tab.label}
+              <span className={`ml-1.5 text-[10px] ${activeCategory === tab.id ? 'text-zinc-500' : 'text-zinc-300'}`}>
+                {counts[tab.id] ?? 0}
               </span>
             </button>
           ))}
@@ -210,7 +147,7 @@ export default function Products() {
 
         {/* Grid */}
         {loading ? (
-          <div className="py-24 text-center text-sm text-zinc-400">Chargement des produits…</div>
+          <div className="py-24 text-center text-sm text-zinc-400">Chargement des accessoires…</div>
         ) : error ? (
           <div className="py-24 text-center text-sm text-red-600">{error}</div>
         ) : filtered.length === 0 ? (
@@ -220,7 +157,7 @@ export default function Products() {
                 <circle cx="11" cy="10" r="7" /><path d="m16 15 3 3" strokeLinecap="round" />
               </svg>
             </div>
-            <p className="text-zinc-400 font-medium mb-2">Aucun produit trouvé</p>
+            <p className="text-zinc-400 font-medium mb-2">Aucun accessoire trouvé</p>
             <button
               onClick={() => { setSearch(''); setActiveCategory('all'); setPage(1) }}
               className="text-xs font-bold uppercase tracking-wide underline text-zinc-500 hover:text-black transition-colors"
@@ -232,11 +169,10 @@ export default function Products() {
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-12">
               {displayed.map(product => (
-                <CollectionProductCard key={product.id} product={product} />
+                <AccessoryCard key={product.id} product={product} />
               ))}
             </div>
 
-            {/* Load more */}
             {hasMore && (
               <div className="mt-14 flex flex-col items-center gap-3">
                 <button
@@ -258,14 +194,14 @@ export default function Products() {
       <section className="bg-zinc-50 border-t border-zinc-100">
         <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">Besoin d'aide ?</p>
-            <h3 className="text-2xl font-black uppercase">Trouvez votre sac idéal</h3>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">Complétez votre équipement</p>
+            <h3 className="text-2xl font-black uppercase">Découvrez nos sacs</h3>
           </div>
           <Link
-            to="/collections/bags"
+            to="/products"
             className="flex-shrink-0 px-8 py-4 bg-black text-white text-sm font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
           >
-            Explorer la collection
+            Voir tous les produits
           </Link>
         </div>
       </section>
