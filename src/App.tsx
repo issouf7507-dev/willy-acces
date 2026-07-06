@@ -3,6 +3,10 @@ import { Routes, Route } from 'react-router-dom'
 // Boutique
 import Home from './pages/Home'
 import Bags from './pages/Bags'
+import NewArrivals from './pages/NewArrivals'
+import Preorders from './pages/Preorders'
+import Accessories from './pages/Accessories'
+import SalonDeBeaute from './pages/SalonDeBeaute'
 import Products from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
 import CartDrawer from './components/cart/CartDrawer'
@@ -27,6 +31,10 @@ export default function App() {
         {/* ── Boutique ────────────────────────────────── */}
         <Route path="/" element={<Home />} />
         <Route path="/collections/bags" element={<Bags />} />
+        <Route path="/collections/new-arrivals" element={<NewArrivals />} />
+        <Route path="/collections/produits-a-venir" element={<Preorders />} />
+        <Route path="/accessories" element={<Accessories />} />
+        <Route path="/salon-de-beaute" element={<SalonDeBeaute />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:handle" element={<ProductDetail />} />
 

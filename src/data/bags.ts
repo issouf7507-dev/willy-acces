@@ -14,6 +14,7 @@ export interface BagProduct {
   colors: ColorOption[]
   badge?: string
   soldOut?: boolean
+  isNew?: boolean
   gradientFrom: string
   gradientTo: string
   tags: string[]
@@ -69,19 +70,19 @@ export const BAGS: BagProduct[] = [
     id: 8, name: 'Kadet WP Sling', price: 140, rating: 4.1, reviews: 21,
     colors: [{ name: 'Black', hex: '#000' }, { name: 'Future White', hex: '#f2efe1' }],
     gradientFrom: 'from-sky-700', gradientTo: 'to-sky-900',
-    tags: ['everyday carry', 'work & commute', 'Waterproof'], volume: '9L', weather: ['Waterproof'], inStock: true,
+    tags: ['everyday carry', 'work & commute', 'Waterproof'], volume: '9L', weather: ['Waterproof'], inStock: true, isNew: true,
   },
   {
     id: 9, name: 'Kadet Max WP Sling', price: 175, rating: 4.0, reviews: 46,
     colors: [{ name: 'Future White', hex: '#f2efe1' }, { name: 'Black', hex: '#000' }],
     gradientFrom: 'from-slate-600', gradientTo: 'to-slate-800',
-    tags: ['work & commute', 'Waterproof'], volume: '15L', weather: ['Waterproof'], inStock: true,
+    tags: ['work & commute', 'Waterproof'], volume: '15L', weather: ['Waterproof'], inStock: true, isNew: true,
   },
   {
     id: 10, name: 'Mini Kadet WP Sling', price: 110, rating: 3.9, reviews: 18,
     colors: [{ name: 'Future White', hex: '#f2efe1' }, { name: 'Black', hex: '#000' }],
     gradientFrom: 'from-indigo-700', gradientTo: 'to-indigo-900',
-    tags: ['work & commute', 'Waterproof'], volume: '5L', weather: ['Waterproof'], inStock: true,
+    tags: ['work & commute', 'Waterproof'], volume: '5L', weather: ['Waterproof'], inStock: true, isNew: true,
   },
   {
     id: 11, name: 'Barrage 22L Pack', price: 170, rating: 4.6, reviews: 68,
@@ -130,43 +131,43 @@ export const BAGS: BagProduct[] = [
     id: 18, name: 'Pac Pouch 2L', price: 40, rating: 4.0, reviews: 3,
     colors: [{ name: 'Matte Black', hex: '#111' }, { name: 'Black Canvas Leather', hex: '#000' }],
     gradientFrom: 'from-zinc-600', gradientTo: 'to-zinc-800',
-    tags: [], volume: '2L', weather: ['Weather resistant'], inStock: true,
+    tags: [], volume: '2L', weather: ['Weather resistant'], inStock: true, isNew: true,
   },
   {
     id: 19, name: 'Bot Flap 5L Sling', price: 90, rating: 4.9, reviews: 7,
     colors: [{ name: 'Matte Black', hex: '#111' }, { name: 'Black Canvas Leather', hex: '#000' }],
     gradientFrom: 'from-stone-700', gradientTo: 'to-stone-900',
-    tags: [], volume: '5L', weather: ['Weather resistant'], inStock: true,
+    tags: [], volume: '5L', weather: ['Weather resistant'], inStock: true, isNew: true,
   },
   {
     id: 20, name: 'Pac Shoulder Pouch 3L', price: 65, rating: 5.0, reviews: 4,
     colors: [{ name: 'Matte Black', hex: '#111' }, { name: 'Black Canvas Leather', hex: '#000' }],
     gradientFrom: 'from-gray-600', gradientTo: 'to-gray-800',
-    tags: [], volume: '3L', weather: ['Weather resistant'], inStock: true,
+    tags: [], volume: '3L', weather: ['Weather resistant'], inStock: true, isNew: true,
   },
   {
     id: 21, name: 'Holman Handlebar Bag', price: 55, rating: 5.0, reviews: 6,
     colors: [{ name: 'Black XRF', hex: '#555' }],
     gradientFrom: 'from-emerald-700', gradientTo: 'to-emerald-900',
-    tags: ['bike bag', 'work & commute'], volume: '1.5L', weather: ['Weather resistant'], inStock: true,
+    tags: ['bike bag', 'work & commute'], volume: '1.5L', weather: ['Weather resistant'], inStock: true, isNew: true,
   },
   {
     id: 22, name: 'Holman Top Tube Bag', price: 45, rating: 3.3, reviews: 6,
     colors: [{ name: 'Black XRF', hex: '#555' }],
     gradientFrom: 'from-teal-700', gradientTo: 'to-teal-900',
-    tags: ['bike bag', 'work & commute'], volume: '1.5L', weather: ['Weather resistant'], inStock: true,
+    tags: ['bike bag', 'work & commute'], volume: '1.5L', weather: ['Weather resistant'], inStock: true, isNew: true,
   },
   {
     id: 23, name: 'Holman Frame Bag L/XL', price: 65, rating: 4.8, reviews: 6,
     colors: [{ name: 'Black XRF', hex: '#555' }],
     gradientFrom: 'from-cyan-700', gradientTo: 'to-cyan-900',
-    tags: ['bike bag', 'work & commute'], volume: '1.5L', weather: ['Weather resistant'], inStock: true,
+    tags: ['bike bag', 'work & commute'], volume: '1.5L', weather: ['Weather resistant'], inStock: true, isNew: true,
   },
   {
     id: 24, name: 'Holman Frame Bag S/M', price: 60, rating: 3.0, reviews: 4,
     colors: [{ name: 'Black XRF', hex: '#555' }, { name: 'Black', hex: '#000' }],
     gradientFrom: 'from-blue-700', gradientTo: 'to-blue-900',
-    tags: ['bike bag', 'work & commute'], volume: '1.5L', weather: ['Weather resistant'], inStock: true,
+    tags: ['bike bag', 'work & commute'], volume: '1.5L', weather: ['Weather resistant'], inStock: true, isNew: true,
   },
 ]
 

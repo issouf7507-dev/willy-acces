@@ -68,7 +68,7 @@ export default function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <div className="group flex-shrink-0 w-[74vw] sm:w-[38vw] lg:w-auto">
+    <div className="group w-auto">
       {/* Image */}
       <div className="relative overflow-hidden">
         <div className={`aspect-square bg-gradient-to-br ${grad} flex items-center justify-center`}>

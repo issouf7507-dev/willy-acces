@@ -5,7 +5,7 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 import CollectionProductCard from '../components/collection/CollectionProductCard'
 import { SORT_OPTIONS, type BagProduct } from '../data/bags'
-import { fetchBags } from '../lib/storefront'
+import { fetchNewArrivals } from '../lib/storefront'
 
 const PAGE_SIZE = 12
 
@@ -25,53 +25,7 @@ const CATEGORY_DEFS: { id: string; label: string; filter: (p: BagProduct) => boo
   { id: 'pochettes', label: 'Pochettes',      filter: (p) => p.name.toLowerCase().includes('pouch') || p.name.toLowerCase().includes('flap') },
 ]
 
-function Stars({ rating }: { rating: number }) {
-  const n = Math.round(rating)
-  return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }, (_, i) => (
-        <svg key={i} width="9" height="9" viewBox="0 0 15 15" className={i < n ? 'text-zinc-800' : 'text-zinc-200'} fill="currentColor">
-          <path d="M7.5 0L9.586 5.273L15 5.73L10.875 9.445L12.135 15L7.5 12.023L2.865 15L4.125 9.445L0 5.73L5.414 5.273L7.5 0Z" />
-        </svg>
-      ))}
-    </div>
-  )
-}
-
-function BestSellersStrip({ products }: { products: BagProduct[] }) {
-  const top = useMemo(() => [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 4), [products])
-  if (top.length === 0) return null
-  return (
-    <section className="border-b border-zinc-100">
-      <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-10">
-        <div className="flex items-end justify-between mb-6">
-          <h2 className="text-xl font-black uppercase tracking-tight">Meilleures ventes</h2>
-          <Link to="/collections/bags" className="text-xs font-bold uppercase tracking-wide text-zinc-500 hover:text-black transition-colors underline underline-offset-2">
-            Voir tout
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {top.map(p => (
-            <Link key={p.id} to={`/products/${p.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`} className="group">
-              <div className={`aspect-square bg-gradient-to-br ${p.gradientFrom} ${p.gradientTo} mb-3 overflow-hidden flex items-center justify-center`}>
-                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.6" opacity="0.2" className="transition-transform duration-500 group-hover:scale-110">
-                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 01-8 0" />
-                </svg>
-              </div>
-              <p className="text-xs font-bold uppercase tracking-wide truncate group-hover:underline">{p.name}</p>
-              <div className="flex items-center justify-between mt-0.5">
-                <Stars rating={p.rating} />
-                <span className="text-xs text-zinc-500">${p.price}</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-export default function Products() {
+export default function NewArrivals() {
   const [products, setProducts] = useState<BagProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -81,14 +35,17 @@ export default function Products() {
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    fetchBags()
+    fetchNewArrivals()
       .then(setProducts)
-      .catch(() => setError('Impossible de charger les produits.'))
+      .catch(() => setError('Impossible de charger les nouveautés.'))
       .finally(() => setLoading(false))
   }, [])
 
   const CATEGORIES: Category[] = useMemo(
-    () => CATEGORY_DEFS.map(d => ({ ...d, count: products.filter(d.filter).length })),
+    () =>
+      CATEGORY_DEFS
+        .map(d => ({ ...d, count: products.filter(d.filter).length }))
+        .filter(c => c.id === 'all' || c.count > 0),
     [products]
   )
 
@@ -112,7 +69,7 @@ export default function Products() {
       case 'reviews':    result = [...result].sort((a, b) => b.reviews - a.reviews); break
     }
     return result
-  }, [products, activeCategory, sortBy, search, activeCat])
+  }, [products, sortBy, search, activeCat])
 
   const displayed = filtered.slice(0, page * PAGE_SIZE)
   const hasMore = displayed.length < filtered.length
@@ -130,22 +87,18 @@ export default function Products() {
       {/* Hero */}
       <section className="bg-black text-white overflow-hidden relative">
         <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-16 md:py-24">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-4">Boutique</p>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-4">Vient d'arriver</p>
           <h1 className="text-5xl md:text-7xl font-black uppercase leading-none mb-4">
-            Tous les<br />
-            <span className="text-zinc-400">produits</span>
+            Nouveautés
           </h1>
           <p className="text-sm text-zinc-400 max-w-sm mt-6">
-            {products.length} articles — sacs, slings, messagers et accessoires pour le quotidien.
+            {products.length} nouveautés — les derniers sacs, slings et accessoires ajoutés à la collection.
           </p>
         </div>
         {/* Decorative gradient circles */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-zinc-800 rounded-full blur-3xl opacity-50 translate-x-1/2 -translate-y-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-zinc-700 rounded-full blur-3xl opacity-30 translate-y-1/2 pointer-events-none" />
       </section>
-
-      {/* Best sellers strip */}
-      <BestSellersStrip products={products} />
 
       {/* Main catalog */}
       <section className="max-w-[1600px] mx-auto px-5 md:px-12 py-10">
@@ -159,7 +112,7 @@ export default function Products() {
             </svg>
             <input
               type="text"
-              placeholder="Rechercher un produit…"
+              placeholder="Rechercher une nouveauté…"
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1) }}
               className="w-full pl-9 pr-4 py-2.5 text-sm border border-zinc-200 focus:border-black focus:outline-none bg-zinc-50 focus:bg-white transition-colors"
@@ -210,7 +163,7 @@ export default function Products() {
 
         {/* Grid */}
         {loading ? (
-          <div className="py-24 text-center text-sm text-zinc-400">Chargement des produits…</div>
+          <div className="py-24 text-center text-sm text-zinc-400">Chargement des nouveautés…</div>
         ) : error ? (
           <div className="py-24 text-center text-sm text-red-600">{error}</div>
         ) : filtered.length === 0 ? (
@@ -220,7 +173,7 @@ export default function Products() {
                 <circle cx="11" cy="10" r="7" /><path d="m16 15 3 3" strokeLinecap="round" />
               </svg>
             </div>
-            <p className="text-zinc-400 font-medium mb-2">Aucun produit trouvé</p>
+            <p className="text-zinc-400 font-medium mb-2">Aucune nouveauté trouvée</p>
             <button
               onClick={() => { setSearch(''); setActiveCategory('all'); setPage(1) }}
               className="text-xs font-bold uppercase tracking-wide underline text-zinc-500 hover:text-black transition-colors"
@@ -258,14 +211,14 @@ export default function Products() {
       <section className="bg-zinc-50 border-t border-zinc-100">
         <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">Besoin d'aide ?</p>
-            <h3 className="text-2xl font-black uppercase">Trouvez votre sac idéal</h3>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">Envie de plus ?</p>
+            <h3 className="text-2xl font-black uppercase">Découvrez toute la collection</h3>
           </div>
           <Link
-            to="/collections/bags"
+            to="/products"
             className="flex-shrink-0 px-8 py-4 bg-black text-white text-sm font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
           >
-            Explorer la collection
+            Voir tous les produits
           </Link>
         </div>
       </section>
