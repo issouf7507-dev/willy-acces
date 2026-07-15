@@ -1,8 +1,10 @@
-// Base de l'API :
-// - Prod (front et back sur des domaines différents) : définir VITE_API_BASE,
-//   ex. "https://backend.willyaccessoire.com/api"
-// - Dev / reverse-proxy same-origin : laisser vide → "/api" (proxy Vite ou Nginx)
-const BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') || '/api'
+// Origine du backend :
+// - Prod (front et back sur des domaines différents) : définir VITE_API_BASE
+//   avec l'origine seule, ex. "https://backend.willyaccessoire.com"
+// - Dev / reverse-proxy same-origin : laisser vide → chemins relatifs (proxy Vite ou Nginx)
+export const API_ORIGIN = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') || ''
+
+const BASE = `${API_ORIGIN}/api`
 
 function token() {
   return localStorage.getItem('admin_token')

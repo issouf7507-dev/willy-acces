@@ -17,6 +17,7 @@ import QuickBuyDrawer from './components/cart/QuickBuyDrawer'
 
 // Auth & Admin
 import { EdgeStoreProvider } from './lib/edgestore'
+import { API_ORIGIN } from './lib/api'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/admin/ProtectedRoute'
 
@@ -46,7 +47,7 @@ function AdminFallback() {
 
 export default function App() {
   return (
-    <EdgeStoreProvider basePath="/edgestore">
+    <EdgeStoreProvider basePath={`${API_ORIGIN}/edgestore`}>
     <AuthProvider>
       <Routes>
         {/* ── Boutique ────────────────────────────────── */}
