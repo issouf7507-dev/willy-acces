@@ -1,4 +1,6 @@
 import { useRef } from 'react'
+import { formatPrice } from '../../lib/utils'
+import { useNavigate } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
 import { RECOMMENDATIONS } from '../../data/recommendations'
 
@@ -27,8 +29,8 @@ function FreeShippingBar({ total }: { total: number }) {
     <div className="mt-3">
       <p className="text-xs text-center text-zinc-600 mb-2">
         {reached
-          ? '🎉 Woohoo, you are eligible for free shipping!'
-          : `Spend $${remaining.toFixed(2)} more and get free shipping!`}
+          ? '🎉 Bravo, vous bénéficiez de la livraison offerte !'
+          : `Plus que ${formatPrice(remaining)} pour la livraison offerte !`}
       </p>
       <div className="flex items-center gap-2">
         <div className="flex-1 h-1.5 bg-zinc-200 rounded-full overflow-hidden">
@@ -60,17 +62,17 @@ function RecommendationCard({ product }: { product: typeof RECOMMENDATIONS[0] })
         <p className="text-xs font-medium leading-tight text-zinc-900 line-clamp-2">{product.name}</p>
         <div className="flex items-center gap-1.5">
           {product.compareAtPrice && (
-            <span className="text-xs text-zinc-400 line-through">${product.compareAtPrice.toFixed(2)}</span>
+            <span className="text-xs text-zinc-400 line-through">{formatPrice(product.compareAtPrice)}</span>
           )}
           <span className={`text-xs font-semibold ${product.compareAtPrice ? 'text-red-600' : 'text-zinc-600'}`}>
-            ${product.price.toFixed(2)} USD
+            {formatPrice(product.price)}
           </span>
         </div>
         <button
           onClick={() => addItem({ id: product.id, name: product.name, price: product.price, color: 'Default', gradientFrom: 'from-zinc-200', gradientTo: 'to-zinc-300' })}
           className="mt-auto text-xs font-bold uppercase tracking-wide border border-zinc-300 px-3 py-1.5 hover:bg-black hover:text-white hover:border-black transition-all"
         >
-          + Add
+          + Ajouter
         </button>
       </div>
     </div>
@@ -79,7 +81,13 @@ function RecommendationCard({ product }: { product: typeof RECOMMENDATIONS[0] })
 
 export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, total, itemCount } = useCart()
+  const navigate = useNavigate()
   const recoRef = useRef<HTMLDivElement>(null)
+
+  const goToCheckout = () => {
+    closeCart()
+    navigate('/checkout')
+  }
 
   const scrollRecos = (dir: 'left' | 'right') => {
     recoRef.current?.scrollBy({ left: dir === 'left' ? -180 : 180, behavior: 'smooth' })
@@ -99,7 +107,7 @@ export default function CartDrawer() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Cart"
+        aria-label="Panier"
         className={`fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white z-50 flex flex-col shadow-2xl transition-transform duration-300 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
@@ -108,14 +116,14 @@ export default function CartDrawer() {
         <div className="px-5 pt-5 pb-4 border-b border-zinc-200">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2.5">
-              <p className="font-bold text-lg">Cart</p>
+              <p className="font-bold text-lg">Panier</p>
               <span className="min-w-[22px] h-[22px] bg-black text-white text-xs rounded-full flex items-center justify-center font-bold px-1">
                 {itemCount}
               </span>
             </div>
             <button
               onClick={closeCart}
-              aria-label="Close cart"
+              aria-label="Fermer le panier"
               className="p-1.5 hover:opacity-60 transition-opacity"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -133,12 +141,12 @@ export default function CartDrawer() {
               <svg width="48" height="48" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-300">
                 <path d="M11 7H3.577A2 2 0 0 0 1.64 9.497l2.051 8A2 2 0 0 0 5.63 19H16.37a2 2 0 0 0 1.937-1.503l2.052-8A2 2 0 0 0 18.422 7H11Zm0 0V1" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <p className="text-zinc-400 font-medium">Your cart is empty</p>
+              <p className="text-zinc-400 font-medium">Votre panier est vide</p>
               <button
                 onClick={closeCart}
                 className="px-6 py-2.5 bg-black text-white text-sm font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
               >
-                Continue shopping
+                Continuer mes achats
               </button>
             </div>
           ) : (
@@ -159,7 +167,7 @@ export default function CartDrawer() {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm leading-snug">{item.name}</p>
-                      <p className="text-sm text-zinc-500 mt-0.5">${item.price.toFixed(2)} USD</p>
+                      <p className="text-sm text-zinc-500 mt-0.5">{formatPrice(item.price)}</p>
                       <p className="text-xs text-zinc-400 mt-0.5">{item.color}</p>
 
                       {/* Quantity + Remove */}
@@ -169,7 +177,7 @@ export default function CartDrawer() {
                           <button
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
                             className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 transition-colors text-lg leading-none"
-                            aria-label="Decrease quantity"
+                            aria-label="Diminuer la quantité"
                           >
                             −
                           </button>
@@ -179,7 +187,7 @@ export default function CartDrawer() {
                           <button
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
                             className="w-7 h-7 flex items-center justify-center text-zinc-600 hover:bg-zinc-100 transition-colors text-lg leading-none"
-                            aria-label="Increase quantity"
+                            aria-label="Augmenter la quantité"
                           >
                             +
                           </button>
@@ -200,12 +208,12 @@ export default function CartDrawer() {
               {/* Recommendations */}
               <div className="bg-zinc-100 px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="font-bold text-sm">You Might Also Like</p>
+                  <p className="font-bold text-sm">Vous aimerez aussi</p>
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => scrollRecos('left')}
                       className="w-7 h-7 rounded-full border border-zinc-300 flex items-center justify-center hover:border-black transition-colors"
-                      aria-label="Previous"
+                      aria-label="Précédent"
                     >
                       <svg width="5" height="8" viewBox="0 0 5 8" fill="none">
                         <path d="m4.25 7-3-3 3-3" stroke="currentColor" strokeWidth="1.5" />
@@ -214,7 +222,7 @@ export default function CartDrawer() {
                     <button
                       onClick={() => scrollRecos('right')}
                       className="w-7 h-7 rounded-full border border-zinc-300 flex items-center justify-center hover:border-black transition-colors"
-                      aria-label="Next"
+                      aria-label="Suivant"
                     >
                       <svg width="5" height="8" viewBox="0 0 5 8" fill="none">
                         <path d="m.75 7 3-3-3-3" stroke="currentColor" strokeWidth="1.5" />
@@ -241,23 +249,26 @@ export default function CartDrawer() {
           <div className="px-5 py-5 border-t border-zinc-200 bg-white space-y-4">
             {/* Subtotal */}
             <div className="flex items-center justify-between">
-              <span className="font-bold text-sm">Subtotal</span>
-              <span className="font-bold text-sm">${total.toFixed(2)} USD</span>
+              <span className="font-bold text-sm">Sous-total</span>
+              <span className="font-bold text-sm">{formatPrice(total)}</span>
             </div>
             <p className="text-xs text-zinc-500">
-              Taxes and{' '}
-              <a href="#" className="underline hover:text-black transition-colors">shipping</a>{' '}
-              calculated at checkout
+              Taxes et{' '}
+              <a href="#" className="underline hover:text-black transition-colors">livraison</a>{' '}
+              calculées au paiement
             </p>
 
             {/* Checkout button */}
-            <button className="w-full bg-zinc-800 text-white py-4 text-sm font-bold uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-2">
+            <button
+              onClick={goToCheckout}
+              className="w-full bg-zinc-800 text-white py-4 text-sm font-bold uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-2"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3.236 18.182a5.071 5.071 0 0 0 4.831 4.465 114.098 114.098 0 0 0 7.865-.001 5.07 5.07 0 0 0 4.831-4.464 23.03 23.03 0 0 0 .165-2.611c0-.881-.067-1.752-.165-2.61a5.07 5.07 0 0 0-4.83-4.465c-1.311-.046-2.622-.07-3.933-.069a109.9 109.9 0 0 0-3.933.069 5.07 5.07 0 0 0-4.83 4.466 23.158 23.158 0 0 0-.165 2.609c0 .883.067 1.754.164 2.61Z" fill="currentColor" fillOpacity=".12" stroke="currentColor" />
                 <path d="M17 8.43V6.285A5 5 0 0 0 7 6.286V8.43" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M12 17.714a2.143 2.143 0 1 0 0-4.286 2.143 2.143 0 0 0 0 4.286Z" />
               </svg>
-              Checkout
+              Commander
             </button>
 
             {/* View cart */}
@@ -266,7 +277,7 @@ export default function CartDrawer() {
                 onClick={closeCart}
                 className="text-sm underline text-zinc-500 hover:text-black transition-colors"
               >
-                View cart
+                Voir le panier
               </button>
             </div>
           </div>

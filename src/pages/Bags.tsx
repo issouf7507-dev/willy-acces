@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import CollectionBanner from '../components/collection/CollectionBanner'
 import FilterDrawer, { type ActiveFilters } from '../components/collection/FilterDrawer'
 import CollectionProductCard from '../components/collection/CollectionProductCard'
-import { BAGS, SORT_OPTIONS } from '../data/bags'
+import { SORT_OPTIONS, type BagProduct } from '../data/bags'
+import { fetchBags } from '../lib/storefront'
 
 const PAGE_SIZE = 12
 
@@ -37,13 +38,23 @@ function productMatchesVolume(productVolume: string | undefined, filterVolumes: 
 }
 
 export default function Bags() {
+  const [products, setProducts] = useState<BagProduct[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [filters, setFilters] = useState<ActiveFilters>(DEFAULT_FILTERS)
   const [sortBy, setSortBy] = useState('featured')
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [page, setPage] = useState(1)
 
+  useEffect(() => {
+    fetchBags()
+      .then(setProducts)
+      .catch(() => setLoadError('Impossible de charger les sacs.'))
+      .finally(() => setLoading(false))
+  }, [])
+
   const filtered = useMemo(() => {
-    let result = [...BAGS]
+    let result = [...products]
 
     if (filters.colors.length > 0) {
       result = result.filter(p => p.colors.some(c => filters.colors.includes(c.name)))
@@ -70,7 +81,7 @@ export default function Bags() {
     }
 
     return result
-  }, [filters, sortBy])
+  }, [products, filters, sortBy])
 
   const displayed = filtered.slice(0, page * PAGE_SIZE)
   const hasMore = displayed.length < filtered.length
@@ -94,8 +105,8 @@ export default function Bags() {
       <Header />
 
       <CollectionBanner
-        title="Bags"
-        description="Street-tested for decades. Rugged, weather resistant & built to carry it all."
+        title="Sacs"
+        description="Éprouvés depuis des années. Robustes, résistants aux intempéries et conçus pour tout emporter."
         totalCount={filtered.length}
       />
 
@@ -113,7 +124,7 @@ export default function Bags() {
                 <circle cx="7" cy="3" r="2" stroke="currentColor" strokeWidth="1.5" fill="white" />
                 <circle cx="13" cy="11" r="2" stroke="currentColor" strokeWidth="1.5" fill="white" />
               </svg>
-              Filter & sort
+              Filtrer & trier
               {activeFilterCount > 0 && (
                 <span className="bg-black text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
                   {activeFilterCount}
@@ -155,7 +166,7 @@ export default function Bags() {
                   onClick={clearAll}
                   className="text-xs underline text-zinc-500 hover:text-black transition-colors"
                 >
-                  Clear all
+                  Tout effacer
                 </button>
               </div>
             )}
@@ -163,7 +174,7 @@ export default function Bags() {
 
           {/* Sort */}
           <div className="flex items-center gap-2">
-            <label className="text-sm text-zinc-500 hidden md:block shrink-0">Sort by</label>
+            <label className="text-sm text-zinc-500 hidden md:block shrink-0">Trier par</label>
             <select
               value={sortBy}
               onChange={e => { setSortBy(e.target.value); setPage(1) }}
@@ -203,11 +214,15 @@ export default function Bags() {
             {/* Product count - desktop */}
             <p className="hidden lg:block text-sm text-zinc-500 mb-5">{filtered.length} products</p>
 
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div className="py-24 text-center text-sm text-zinc-400">Chargement des sacs…</div>
+            ) : loadError ? (
+              <div className="py-24 text-center text-sm text-red-600">{loadError}</div>
+            ) : filtered.length === 0 ? (
               <div className="py-20 text-center text-zinc-400">
-                <p className="text-lg font-medium mb-2">No products found</p>
+                <p className="text-lg font-medium mb-2">Aucun produit trouvé</p>
                 <button onClick={clearAll} className="text-sm underline hover:text-black transition-colors">
-                  Clear all filters
+                  Effacer tous les filtres
                 </button>
               </div>
             ) : (
@@ -225,10 +240,10 @@ export default function Bags() {
                       onClick={() => setPage(p => p + 1)}
                       className="px-10 py-3.5 border-2 border-black text-sm font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors"
                     >
-                      Load more
+                      Voir plus
                     </button>
                     <p className="mt-3 text-xs text-zinc-400">
-                      Showing {displayed.length} of {filtered.length} products
+                      {displayed.length} sur {filtered.length} produits
                     </p>
                   </div>
                 )}
@@ -247,7 +262,7 @@ export default function Bags() {
           <svg width="16" height="12" viewBox="0 0 20 14" fill="none">
             <path d="M1 2C0.448 2 0 2.448 0 3s.448 1 1 1h4V2H1zm8 8H1v2h8v-2zm10-8h-9v2h9V2zM7 0C6.448 0 6 .448 6 1v4c0 .552.448 1 1 1h2c.552 0 1-.448 1-1V1c0-.552-.448-1-1-1H7zm6 8c-.552 0-1 .448-1 1v4c0 .552.448 1 1 1h2c.552 0 1-.448 1-1V9c0-.552-.448-1-1-1h-2z" fill="currentColor" />
           </svg>
-          Filter &amp; sort
+          Filtrer &amp; trier
           {activeFilterCount > 0 && (
             <span className="bg-white text-black text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center">
               {activeFilterCount}

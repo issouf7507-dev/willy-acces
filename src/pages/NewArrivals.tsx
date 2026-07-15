@@ -5,7 +5,7 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 import CollectionProductCard from '../components/collection/CollectionProductCard'
 import { SORT_OPTIONS, type BagProduct } from '../data/bags'
-import { fetchNewArrivals } from '../lib/storefront'
+import { fetchFeaturedBags } from '../lib/storefront'
 
 const PAGE_SIZE = 12
 
@@ -35,7 +35,7 @@ export default function NewArrivals() {
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    fetchNewArrivals()
+    fetchFeaturedBags()
       .then(setProducts)
       .catch(() => setError('Impossible de charger les nouveautés.'))
       .finally(() => setLoading(false))

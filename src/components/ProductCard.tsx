@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatPrice } from '../lib/utils'
 import { Link } from 'react-router-dom'
 import { useQuickBuy } from '../context/QuickBuyContext'
 import { nameToHandle } from '../data/productDetail'
@@ -11,6 +12,7 @@ export interface Product {
   reviews: number
   colors: string[]
   badge?: string
+  imageUrl?: string
 }
 
 const GRADIENTS = [
@@ -77,11 +79,15 @@ export default function ProductCard({ product }: { product: Product }) {
               {product.badge}
             </span>
           )}
-          <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.8" opacity="0.25">
-            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <path d="M16 10a4 4 0 01-8 0" />
-          </svg>
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.8" opacity="0.25">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 01-8 0" />
+            </svg>
+          )}
         </div>
 
         {/* Quick Add - slides up on hover */}
@@ -90,7 +96,7 @@ export default function ProductCard({ product }: { product: Product }) {
             onClick={handleQuickBuy}
             className="w-full bg-black text-white text-xs font-bold uppercase tracking-widest py-3.5 hover:bg-zinc-800 transition-colors"
           >
-            + Quick add
+            + Ajout rapide
           </button>
         </div>
       </div>
@@ -106,7 +112,7 @@ export default function ProductCard({ product }: { product: Product }) {
           <span className="text-xs text-zinc-400">({product.reviews})</span>
         </div>
 
-        <p className="text-sm font-semibold">${product.price}.00 USD</p>
+        <p className="text-sm font-semibold">{formatPrice(product.price)}</p>
 
         {/* Color swatches */}
         {product.colors.length > 1 && (

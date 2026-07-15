@@ -1,59 +1,58 @@
-import { useState, type FormEvent } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { useState, type FormEvent } from "react";
+import { useNavigate, Navigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 const testimonials = [
   {
-    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    name: 'Aminata Koné',
-    handle: '@aminata_style',
-    text: 'La gestion des commandes est devenue tellement simple. Je gagne un temps fou au quotidien.',
+    avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+    name: "Aminata Koné",
+    handle: "@aminata_style",
+    text: "La gestion des commandes est devenue tellement simple. Je gagne un temps fou au quotidien.",
   },
   {
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    name: 'Kouassi Bamba',
-    handle: '@kbamba_mode',
-    text: 'Interface claire, rapide et intuitive. Exactement ce dont notre boutique avait besoin.',
+    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    name: "Kouassi Bamba",
+    handle: "@kbamba_mode",
+    text: "Interface claire, rapide et intuitive. Exactement ce dont notre boutique avait besoin.",
   },
   {
-    avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
-    name: 'Fatou Diallo',
-    handle: '@fatou.accesoires',
-    text: 'Depuis qu\'on utilise ce backoffice, les erreurs de stock ont disparu. Parfait !',
+    avatar: "https://randomuser.me/api/portraits/women/68.jpg",
+    name: "Fatou Diallo",
+    handle: "@fatou.accesoires",
+    text: "Depuis qu'on utilise ce backoffice, les erreurs de stock ont disparu. Parfait !",
   },
-]
+];
 
 export default function Login() {
-  const { user, login } = useAuth()
-  const navigate = useNavigate()
+  const { user, login } = useAuth();
+  const navigate = useNavigate();
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPwd, setShowPwd] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [activeTestimonial, setActiveTestimonial] = useState(0)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
 
-  if (user) return <Navigate to="/admin" replace />
+  if (user) return <Navigate to="/admin" replace />;
 
   async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
-      await login(email, password)
-      navigate('/admin', { replace: true })
+      await login(email, password);
+      navigate("/admin", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connexion échouée')
+      setError(err instanceof Error ? err.message : "Connexion échouée");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
     <div className="min-h-screen flex">
-
       {/* ── Panneau gauche : hero + témoignages ── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col">
         {/* Image de fond */}
@@ -72,7 +71,9 @@ export default function Login() {
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
               <span className="text-gray-900 font-bold text-sm">W</span>
             </div>
-            <span className="text-white font-semibold text-lg">Willy Accessoire</span>
+            <span className="text-white font-semibold text-lg">
+              Willy Accessoire
+            </span>
           </div>
 
           {/* Témoignage */}
@@ -88,8 +89,12 @@ export default function Login() {
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-white/30"
                 />
                 <div>
-                  <p className="text-white font-medium text-sm">{testimonials[activeTestimonial].name}</p>
-                  <p className="text-white/60 text-xs">{testimonials[activeTestimonial].handle}</p>
+                  <p className="text-white font-medium text-sm">
+                    {testimonials[activeTestimonial].name}
+                  </p>
+                  <p className="text-white/60 text-xs">
+                    {testimonials[activeTestimonial].handle}
+                  </p>
                 </div>
               </div>
             </div>
@@ -101,7 +106,9 @@ export default function Login() {
                   key={i}
                   onClick={() => setActiveTestimonial(i)}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === activeTestimonial ? 'bg-white w-6' : 'bg-white/40 w-1.5'
+                    i === activeTestimonial
+                      ? "bg-white w-6"
+                      : "bg-white/40 w-1.5"
                   }`}
                 />
               ))}
@@ -113,24 +120,28 @@ export default function Login() {
       {/* ── Panneau droit : formulaire ── */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
         <div className="w-full max-w-sm">
-
           {/* En-tête mobile */}
           <div className="lg:hidden flex items-center gap-2 mb-8">
             <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xs">W</span>
             </div>
-            <span className="font-semibold text-gray-900">Willy Accessoire</span>
+            <span className="font-semibold text-gray-900">
+              Willy Accessoire
+            </span>
           </div>
 
           {/* Titre */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Bon retour 👋</h1>
-            <p className="text-sm text-gray-500 mt-1.5">Connectez-vous à votre espace d'administration</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Bon retour 👋 admin@willy-accesoire.com + Admin1234!
+            </h1>
+            <p className="text-sm text-gray-500 mt-1.5">
+              Connectez-vous à votre espace d'administration
+            </p>
           </div>
 
           {/* Formulaire */}
           <form onSubmit={handleSubmit} className="space-y-4">
-
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -151,7 +162,9 @@ export default function Login() {
             {/* Mot de passe */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-gray-700">Mot de passe</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Mot de passe
+                </label>
                 <button
                   type="button"
                   className="text-xs text-gray-500 hover:text-gray-900 transition-colors"
@@ -161,7 +174,7 @@ export default function Login() {
               </div>
               <div className="relative">
                 <input
-                  type={showPwd ? 'text' : 'password'}
+                  type={showPwd ? "text" : "password"}
                   required
                   autoComplete="current-password"
                   value={password}
@@ -174,7 +187,11 @@ export default function Login() {
                   onClick={() => setShowPwd((v) => !v)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPwd ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -194,7 +211,7 @@ export default function Login() {
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? 'Connexion en cours…' : 'Se connecter'}
+              {loading ? "Connexion en cours…" : "Se connecter"}
             </button>
           </form>
 
@@ -204,7 +221,6 @@ export default function Login() {
           </p>
         </div>
       </div>
-
     </div>
-  )
+  );
 }

@@ -59,7 +59,7 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
             {images.map(img => (
               <div key={img.id} className="flex-shrink-0 w-full aspect-square">
                 <div className={`w-full h-full bg-gradient-to-br ${img.gradientFrom} ${img.gradientTo} flex items-center justify-center`}>
-                  <BagIcon />
+                  {img.url ? <img src={img.url} alt={img.alt} className="w-full h-full object-cover" /> : <BagIcon />}
                 </div>
               </div>
             ))}
@@ -89,7 +89,7 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
               className={`flex-shrink-0 w-14 h-14 rounded-sm overflow-hidden border-2 transition-all ${i === activeIndex ? 'border-black' : 'border-transparent opacity-60 hover:opacity-100'}`}
             >
               <div className={`w-full h-full bg-gradient-to-br ${img.gradientFrom} ${img.gradientTo} flex items-center justify-center`}>
-                <BagIcon size={20} />
+                {img.url ? <img src={img.url} alt={img.alt} className="w-full h-full object-cover" /> : <BagIcon size={20} />}
               </div>
             </button>
           ))}
@@ -104,7 +104,7 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
               className={`aspect-square cursor-zoom-in relative overflow-hidden group ${i === 0 ? 'col-span-2' : ''}`}
             >
               <div className={`w-full h-full bg-gradient-to-br ${img.gradientFrom} ${img.gradientTo} flex items-center justify-center transition-transform duration-500 group-hover:scale-[1.02]`}>
-                <BagIcon size={i === 0 ? 100 : 64} />
+                {img.url ? <img src={img.url} alt={img.alt} className="w-full h-full object-cover" /> : <BagIcon size={i === 0 ? 100 : 64} />}
               </div>
               {i === activeIndex && (
                 <div className="absolute inset-0 ring-2 ring-inset ring-black/10 pointer-events-none" />

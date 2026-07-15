@@ -35,7 +35,7 @@ export default function Header() {
 
           {/* Logo */}
           <Link to="/" className="flex-1 lg:flex-none flex justify-center lg:justify-start">
-            <span className="font-black text-2xl tracking-tight select-none">CHROME</span>
+            <span className="font-black text-2xl tracking-tight select-none">WILLY</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -53,13 +53,13 @@ export default function Header() {
 
           {/* Icons */}
           <div className="flex items-center gap-1">
-            <button className="hidden md:flex p-2 hover:opacity-60 transition-opacity" aria-label="Search">
+            <button className="hidden md:flex p-2 hover:opacity-60 transition-opacity" aria-label="Rechercher">
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="10" r="7" />
                 <path d="m16 15 3 3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <button className="hidden md:flex p-2 hover:opacity-60 transition-opacity" aria-label="Account">
+            <button className="hidden md:flex p-2 hover:opacity-60 transition-opacity" aria-label="Compte">
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="7" r="4" />
                 <path d="M3.5 19c1.421-2.974 4.247-5 7.5-5s6.079 2.026 7.5 5" strokeLinecap="round" />
@@ -70,7 +70,7 @@ export default function Header() {
             <button
               onClick={openCart}
               className="relative p-2 hover:opacity-60 transition-opacity"
-              aria-label="Open cart"
+              aria-label="Ouvrir le panier"
             >
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 7H3.577A2 2 0 0 0 1.64 9.497l2.051 8A2 2 0 0 0 5.63 19H16.37a2 2 0 0 0 1.937-1.503l2.052-8A2 2 0 0 0 18.422 7H11Zm0 0V1" />

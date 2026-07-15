@@ -12,10 +12,23 @@ interface Product {
   stock: number
   isActive: boolean
   isFeatured: boolean
+  isNew: boolean
+  isPreorder: boolean
+  releaseDate: string | null
   sku: string | null
   images: ProductImage[]
   category: { name: string } | null
 }
+
+const FILTERS = [
+  { id: 'all',      label: 'Tous' },
+  { id: 'preorder', label: 'Précommandes' },
+  { id: 'featured', label: 'Mis en avant' },
+  { id: 'new',      label: 'Nouveaux' },
+  { id: 'inactive', label: 'Inactifs' },
+] as const
+
+type FilterId = (typeof FILTERS)[number]['id']
 
 interface PageData {
   items: Product[]
@@ -25,6 +38,7 @@ interface PageData {
 export default function Products() {
   const [data, setData] = useState<PageData | null>(null)
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<FilterId>('all')
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [editProduct, setEditProduct] = useState<Product | null | 'new'>(null)
@@ -34,10 +48,14 @@ export default function Products() {
     setLoading(true)
     const params = new URLSearchParams({ page: String(page), limit: '20' })
     if (search) params.set('search', search)
+    if (filter === 'preorder') params.set('isPreorder', 'true')
+    else if (filter === 'featured') params.set('isFeatured', 'true')
+    else if (filter === 'new') params.set('isNew', 'true')
+    else if (filter === 'inactive') params.set('isActive', 'false')
     api.get<PageData>(`/products?${params}`)
       .then(setData)
       .finally(() => setLoading(false))
-  }, [page, search])
+  }, [page, search, filter])
 
   useEffect(() => { load() }, [load])
 
@@ -87,6 +105,23 @@ export default function Products() {
         />
       </div>
 
+      {/* Filtres par statut */}
+      <div className="flex gap-1.5 mb-4 overflow-x-auto scrollbar-hide">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => { setFilter(f.id); setPage(1) }}
+            className={`flex-shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+              filter === f.id
+                ? 'bg-gray-900 text-white border-gray-900'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
@@ -127,6 +162,19 @@ export default function Products() {
                           <div>
                             <p className="font-medium text-gray-900 line-clamp-1">{p.name}</p>
                             {p.sku && <p className="text-xs text-gray-400">SKU : {p.sku}</p>}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {p.isPreorder && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-50 text-purple-700">
+                                  Précommande{p.releaseDate ? ` · ${new Date(p.releaseDate).toLocaleDateString('fr-FR')}` : ''}
+                                </span>
+                              )}
+                              {p.isFeatured && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">Mis en avant</span>
+                              )}
+                              {p.isNew && (
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">Nouveau</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>

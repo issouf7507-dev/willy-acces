@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatPrice } from '../../lib/utils'
 import type { AccessoryProduct } from '../../data/accessories'
 import { useQuickBuy } from '../../context/QuickBuyContext'
 
@@ -55,11 +56,15 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
       {/* Image */}
       <div className="relative overflow-hidden">
         <div className={`aspect-square bg-gradient-to-br ${product.gradientFrom} ${product.gradientTo} flex items-center justify-center`}>
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.6" opacity="0.2">
-            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <path d="M16 10a4 4 0 01-8 0" />
-          </svg>
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.6" opacity="0.2">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 01-8 0" />
+            </svg>
+          )}
           <div className={`absolute inset-0 bg-black/10 transition-opacity duration-200 ${hovered ? 'opacity-100' : 'opacity-0'}`} />
         </div>
 
@@ -85,9 +90,9 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
 
         <div className="flex items-center gap-2">
           {product.compareAtPrice && product.compareAtPrice > product.price && (
-            <span className="text-xs text-zinc-400 line-through">${product.compareAtPrice}.00</span>
+            <span className="text-xs text-zinc-400 line-through">{formatPrice(product.compareAtPrice)}</span>
           )}
-          <span className="text-sm font-semibold">${product.price}.00 USD</span>
+          <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
         </div>
 
         {/* Swatches */}

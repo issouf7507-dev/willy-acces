@@ -4,18 +4,14 @@ import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import AccessoryCard from '../components/accessories/AccessoryCard'
-import { ACCESSORY_CATEGORIES, ACCESSORY_SORT_OPTIONS, type AccessoryProduct } from '../data/accessories'
-import { fetchAccessories } from '../lib/storefront'
+import { ACCESSORY_SORT_OPTIONS, type AccessoryProduct } from '../data/accessories'
+import { fetchAccessories, fetchCategories, childCategories, type StoreCategory } from '../lib/storefront'
 
 const PAGE_SIZE = 12
 
-const TABS = [
-  { id: 'all', label: 'Tous' },
-  ...ACCESSORY_CATEGORIES.map(c => ({ id: c.id, label: c.label })),
-]
-
 export default function Accessories() {
   const [products, setProducts] = useState<AccessoryProduct[]>([])
+  const [categories, setCategories] = useState<StoreCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
@@ -24,19 +20,33 @@ export default function Accessories() {
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    fetchAccessories()
-      .then(setProducts)
+    Promise.all([fetchAccessories(), fetchCategories()])
+      .then(([prods, cats]) => { setProducts(prods); setCategories(cats) })
       .catch(() => setError('Impossible de charger les accessoires.'))
       .finally(() => setLoading(false))
   }, [])
 
+  // Onglets = sous-catégories d'« Accessoires » définies dans le back-office.
+  // Comme sur /products, on masque celles sans produit : un onglet vide n'est
+  // qu'un cul-de-sac pour le visiteur.
+  const TABS = useMemo(
+    () => [
+      { id: 'all', label: 'Tous' },
+      ...childCategories(categories, 'accessoires')
+        .map(c => ({ id: c.slug, label: c.name }))
+        .filter(t => products.some(p => p.category === t.id)),
+    ],
+    [categories, products],
+  )
+
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: products.length }
-    for (const c of ACCESSORY_CATEGORIES) {
-      map[c.id] = products.filter(p => p.category === c.id).length
+    for (const tab of TABS) {
+      if (tab.id === 'all') continue
+      map[tab.id] = products.filter(p => p.category === tab.id).length
     }
     return map
-  }, [products])
+  }, [products, TABS])
 
   const filtered = useMemo(() => {
     let result = activeCategory === 'all'

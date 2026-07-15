@@ -14,6 +14,7 @@ export interface PreorderProduct {
   colors: PreorderColor[]
   gradientFrom: string
   gradientTo: string
+  imageUrl?: string
 }
 
 export const PREORDERS: PreorderProduct[] = [

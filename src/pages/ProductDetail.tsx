@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { formatPrice } from '../lib/utils'
 import { useParams, Link } from 'react-router-dom'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import ProductGallery from '../components/product/ProductGallery'
 import ProductInfo from '../components/product/ProductInfo'
-import { getProductByHandle } from '../data/productDetail'
+import type { ProductDetailData } from '../data/productDetail'
+import { fetchProductDetail } from '../lib/storefront'
 
 function Stars({ rating, count }: { rating: number; count: number }) {
   const filled = Math.round(rating)
@@ -24,8 +26,32 @@ function Stars({ rating, count }: { rating: number; count: number }) {
 
 export default function ProductDetail() {
   const { handle } = useParams<{ handle: string }>()
-  const product = handle ? getProductByHandle(handle) : null
+  const [product, setProduct] = useState<ProductDetailData | null>(null)
+  const [loading, setLoading] = useState(true)
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setSelectedVariantIndex(0)
+    fetchProductDetail(handle ?? '')
+      .then(p => { if (active) setProduct(p) })
+      .catch(() => { if (active) setProduct(null) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [handle])
+
+  if (loading) {
+    return (
+      <>
+        <AnnouncementBar />
+        <Header />
+        <div className="min-h-[60vh] flex items-center justify-center px-5">
+          <p className="text-sm text-zinc-400">Chargement du produit…</p>
+        </div>
+      </>
+    )
+  }
 
   if (!product) {
     return (
@@ -34,10 +60,10 @@ export default function ProductDetail() {
         <Header />
         <div className="min-h-[60vh] flex items-center justify-center px-5">
           <div className="text-center">
-            <h1 className="text-xl font-bold mb-3">Product not found</h1>
-            <p className="text-sm text-zinc-500 mb-6">The product you're looking for doesn't exist.</p>
+            <h1 className="text-xl font-bold mb-3">Produit introuvable</h1>
+            <p className="text-sm text-zinc-500 mb-6">Le produit que vous cherchez n’existe pas.</p>
             <Link to="/collections/bags" className="inline-block bg-black text-white text-sm font-bold uppercase tracking-widest px-6 py-3 hover:bg-zinc-800 transition-colors">
-              Browse Bags
+              Voir les sacs
             </Link>
           </div>
         </div>
@@ -56,7 +82,7 @@ export default function ProductDetail() {
       {/* Mobile breadcrumb */}
       <div className="lg:hidden px-5 py-3 border-b border-zinc-100">
         <nav className="flex items-center gap-1.5 text-xs text-zinc-500 flex-wrap">
-          <Link to="/" className="hover:text-black transition-colors">Home</Link>
+          <Link to="/" className="hover:text-black transition-colors">Accueil</Link>
           <span>/</span>
           <Link to={`/collections/${product.collectionHandle}`} className="hover:text-black transition-colors capitalize">
             {product.collectionName}
@@ -77,9 +103,9 @@ export default function ProductDetail() {
               <Stars rating={product.rating} count={product.reviews} />
               <div className="flex items-center gap-2">
                 {selectedVariant.compareAtPrice && selectedVariant.compareAtPrice > selectedVariant.price && (
-                  <span className="text-xs text-zinc-400 line-through">${selectedVariant.compareAtPrice}.00</span>
+                  <span className="text-xs text-zinc-400 line-through">{formatPrice(selectedVariant.compareAtPrice)}</span>
                 )}
-                <span className="text-sm font-semibold">${selectedVariant.price}.00 USD</span>
+                <span className="text-sm font-semibold">{formatPrice(selectedVariant.price)}</span>
               </div>
             </div>
           </div>
@@ -101,7 +127,7 @@ export default function ProductDetail() {
       <div className="lg:hidden sticky bottom-0 z-30 bg-white border-t border-zinc-100 px-4 py-3 flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold uppercase truncate">{product.name}</p>
-          <p className="text-xs text-zinc-500">${selectedVariant.price}.00 — {selectedVariant.name}</p>
+          <p className="text-xs text-zinc-500">{formatPrice(selectedVariant.price)} — {selectedVariant.name}</p>
         </div>
         <button
           onClick={() => {
@@ -110,7 +136,7 @@ export default function ProductDetail() {
           }}
           className="flex-shrink-0 px-5 py-2.5 text-xs font-bold uppercase tracking-wider bg-black text-white hover:bg-zinc-800 transition-colors"
         >
-          Add to cart
+          Ajouter au panier
         </button>
       </div>
     </>

@@ -1,19 +1,40 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import QuoteForm from '../components/salon/QuoteForm'
-import { SALON_SERVICES, GALLERY_ITEMS, GALLERY_FILTERS } from '../data/salon'
+import {
+  fetchSalonServices,
+  fetchSalonCatalogues,
+  type SalonServiceApi,
+  type SalonCatalogueApi,
+} from '../lib/storefront'
 
 const XOF = new Intl.NumberFormat('fr-FR')
 
 export default function SalonDeBeaute() {
   const [filter, setFilter] = useState('all')
+  const [services, setServices] = useState<SalonServiceApi[]>([])
+  const [catalogues, setCatalogues] = useState<SalonCatalogueApi[]>([])
 
-  const gallery = useMemo(
-    () => filter === 'all' ? GALLERY_ITEMS : GALLERY_ITEMS.filter(g => g.category === filter),
-    [filter]
+  useEffect(() => {
+    fetchSalonServices().then(setServices).catch(() => setServices([]))
+    fetchSalonCatalogues().then(setCatalogues).catch(() => setCatalogues([]))
+  }, [])
+
+  // Onglets de galerie = catalogues du back-office.
+  const galleryFilters = useMemo(
+    () => [{ id: 'all', label: 'Tout' }, ...catalogues.map(c => ({ id: c.id, label: c.title }))],
+    [catalogues]
   )
+
+  // Chaque image d'un catalogue devient un élément de galerie.
+  const gallery = useMemo(() => {
+    const items = catalogues.flatMap(c =>
+      c.images.map(img => ({ id: img.id, url: img.imageUrl, title: img.alt || c.title, catalogueId: c.id })),
+    )
+    return filter === 'all' ? items : items.filter(g => g.catalogueId === filter)
+  }, [catalogues, filter])
 
   return (
     <div className="min-h-screen bg-white">
@@ -49,7 +70,7 @@ export default function SalonDeBeaute() {
           <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tight">Ce que nous faisons</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {SALON_SERVICES.map(s => (
+          {services.map(s => (
             <div key={s.id} className="group border border-zinc-200 overflow-hidden flex flex-col">
               <div className={`aspect-[16/10] bg-gradient-to-br ${s.gradientFrom} ${s.gradientTo} flex items-center justify-center`}>
                 <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.6" opacity="0.25">
@@ -78,7 +99,7 @@ export default function SalonDeBeaute() {
 
           {/* Filtres */}
           <div className="flex flex-wrap justify-center gap-2 mb-8">
-            {GALLERY_FILTERS.map(f => (
+            {galleryFilters.map(f => (
               <button
                 key={f.id}
                 onClick={() => setFilter(f.id)}
@@ -96,14 +117,18 @@ export default function SalonDeBeaute() {
           {/* Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {gallery.map(item => (
-              <div key={item.id} className="group relative aspect-square overflow-hidden">
-                <div className={`absolute inset-0 bg-gradient-to-br ${item.gradientFrom} ${item.gradientTo} transition-transform duration-500 group-hover:scale-105`} />
+              <div key={item.id} className="group relative aspect-square overflow-hidden bg-zinc-200">
+                <img src={item.url} alt={item.title}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300" />
                 <div className="absolute inset-x-0 bottom-0 p-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
                   <p className="text-white text-xs font-bold uppercase tracking-wide">{item.title}</p>
                 </div>
               </div>
             ))}
+            {gallery.length === 0 && (
+              <p className="col-span-full text-center text-sm text-zinc-400 py-10">Aucune réalisation pour le moment.</p>
+            )}
           </div>
         </div>
       </section>

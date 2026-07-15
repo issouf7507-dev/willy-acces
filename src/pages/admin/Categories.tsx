@@ -3,15 +3,56 @@ import { api } from '../../lib/api'
 import { Plus, Pencil, Trash2, Loader2, Tag } from 'lucide-react'
 
 interface Category {
-  id: string; name: string; slug: string; isActive: boolean
+  id: string; name: string; slug: string; isActive: boolean; parentId: string | null
   _count: { products: number }; children: Category[]
+}
+
+interface FormState {
+  name: string
+  isActive: boolean
+  /** '' = catégorie de premier niveau. */
+  parentId: string
+}
+
+function Row({ cat, onEdit, onRemove, nested = false }: {
+  cat: Category
+  onEdit: (c: Category) => void
+  onRemove: (id: string) => void
+  nested?: boolean
+}) {
+  return (
+    <div className={`flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors ${nested ? 'pl-12 bg-gray-50/30' : ''}`}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          {nested && <span className="text-gray-300 select-none">└─</span>}
+          <span className={nested ? 'text-gray-700' : 'font-medium text-gray-900'}>{cat.name}</span>
+          {!cat.isActive && (
+            <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Inactif</span>
+          )}
+        </div>
+        <p className={`text-xs text-gray-400 mt-0.5 ${nested ? 'ml-6' : ''}`}>
+          {cat._count.products} produit(s) · slug : {cat.slug}
+        </p>
+      </div>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onEdit(cat)}
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+          <Pencil className="w-4 h-4" />
+        </button>
+        <button onClick={() => onRemove(cat.id)}
+          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Category | null | 'new'>(null)
-  const [form, setForm] = useState({ name: '', isActive: true })
+  const [form, setForm] = useState<FormState>({ name: '', isActive: true, parentId: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -24,17 +65,30 @@ export default function Categories() {
 
   useEffect(() => { load() }, [])
 
-  function openNew() { setForm({ name: '', isActive: true }); setEditing('new'); setError('') }
-  function openEdit(c: Category) { setForm({ name: c.name, isActive: c.isActive }); setEditing(c); setError('') }
+  // L'API renvoie tous les niveaux à plat : on regroupe pour l'affichage.
+  const roots = categories.filter(c => !c.parentId)
+  const childrenOf = (id: string) => categories.filter(c => c.parentId === id)
+
+  function openNew() { setForm({ name: '', isActive: true, parentId: '' }); setEditing('new'); setError('') }
+  function openEdit(c: Category) {
+    setForm({ name: c.name, isActive: c.isActive, parentId: c.parentId ?? '' })
+    setEditing(c); setError('')
+  }
 
   async function save() {
     if (!form.name.trim()) { setError('Le nom est requis'); return }
     setSaving(true); setError('')
     try {
+      // parentId '' => null côté API, ce qui remonte la catégorie au premier niveau.
+      const payload = {
+        name: form.name,
+        isActive: form.isActive,
+        parentId: form.parentId || null,
+      }
       if (editing === 'new') {
-        await api.post('/categories', form)
+        await api.post('/categories', payload)
       } else if (editing) {
-        await api.patch(`/categories/${editing.id}`, form)
+        await api.patch(`/categories/${editing.id}`, payload)
       }
       setEditing(null); load()
     } catch (err) {
@@ -75,29 +129,12 @@ export default function Categories() {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {categories.map((cat) => (
-              <div key={cat.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{cat.name}</span>
-                    {!cat.isActive && (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Inactif</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {cat._count.products} produit(s) · slug : {cat.slug}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(cat)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => remove(cat.id)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+            {roots.map((cat) => (
+              <div key={cat.id}>
+                <Row cat={cat} onEdit={openEdit} onRemove={remove} />
+                {childrenOf(cat.id).map((child) => (
+                  <Row key={child.id} cat={child} onEdit={openEdit} onRemove={remove} nested />
+                ))}
               </div>
             ))}
           </div>
@@ -116,6 +153,22 @@ export default function Categories() {
               <input autoFocus value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                 placeholder="Nom de la catégorie" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Catégorie parente</label>
+              <select
+                value={form.parentId}
+                onChange={(e) => setForm(f => ({ ...f, parentId: e.target.value }))}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                <option value="">Aucune (catégorie principale)</option>
+                {roots
+                  .filter(r => editing === 'new' || r.id !== editing?.id)
+                  .map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Une sous-catégorie devient un onglet de la page de sa catégorie parente.
+              </p>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isActive}

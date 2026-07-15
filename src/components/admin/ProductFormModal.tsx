@@ -3,11 +3,12 @@ import { api } from '../../lib/api'
 import { useEdgeStore } from '../../lib/edgestore'
 import { X, Loader2, Upload, Trash2, ImagePlus } from 'lucide-react'
 
-interface Category { id: string; name: string }
+interface Category { id: string; name: string; parentId?: string | null; sortOrder?: number }
 interface Product {
   id: string; name: string; slug?: string; price: number | string
   compareAtPrice?: number | string | null; stock: number; sku: string | null
   description?: string | null; isActive: boolean; isFeatured: boolean
+  isNew?: boolean; isPreorder?: boolean; releaseDate?: string | null
   categoryId?: string | null; images: { url: string; alt?: string | null }[]
 }
 
@@ -23,6 +24,29 @@ interface ImageEntry {
   uploading?: boolean
   progress?: number
   error?: string
+}
+
+/**
+ * Aplatit l'arbre en options parent → enfants indentés. L'API renvoie les
+ * catégories à plat : sans ce regroupement, « Porte-clés » apparaîtrait au même
+ * niveau que « Sacs », sans indiquer de quoi elle dépend.
+ */
+function categoryOptions(cats: Category[]): { id: string; label: string }[] {
+  const byOrder = [...cats].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  const roots = byOrder.filter(c => !c.parentId)
+  const out: { id: string; label: string }[] = []
+  for (const root of roots) {
+    out.push({ id: root.id, label: root.name })
+    for (const child of byOrder.filter(c => c.parentId === root.id)) {
+      out.push({ id: child.id, label: `   └─ ${child.name}` })
+    }
+  }
+  // Filet de sécurité : une catégorie dont le parent est inactif/absent de la
+  // liste doit rester sélectionnable plutôt que de disparaître du formulaire.
+  for (const c of byOrder) {
+    if (!out.some(o => o.id === c.id)) out.push({ id: c.id, label: c.name })
+  }
+  return out
 }
 
 export default function ProductFormModal({ product, onClose, onSaved }: Props) {
@@ -47,6 +71,9 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     categoryId: product?.categoryId ?? '',
     isActive: product?.isActive ?? true,
     isFeatured: product?.isFeatured ?? false,
+    isNew: product?.isNew ?? false,
+    isPreorder: product?.isPreorder ?? false,
+    releaseDate: product?.releaseDate ? String(product.releaseDate).slice(0, 10) : '',
   })
 
   useEffect(() => {
@@ -135,6 +162,9 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         categoryId: form.categoryId || undefined,
         isActive: form.isActive,
         isFeatured: form.isFeatured,
+        isNew: form.isNew,
+        isPreorder: form.isPreorder,
+        releaseDate: form.isPreorder && form.releaseDate ? form.releaseDate : undefined,
         images: images
           .filter((img) => !img.uploading && !img.error && img.url.startsWith('https://'))
           .map((img, sortOrder) => ({ url: img.url, alt: img.alt || undefined, sortOrder })),
@@ -203,8 +233,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
           <Field label="Catégorie">
             <select value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)} className={input}>
               <option value="">— Aucune —</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              {categoryOptions(categories).map((c) => (
+                <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
           </Field>
@@ -275,7 +305,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             )}
           </Field>
 
-          <div className="flex gap-6 pt-1">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isActive}
                 onChange={(e) => set('isActive', e.target.checked)}
@@ -288,7 +318,26 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
                 className="w-4 h-4 rounded accent-gray-900" />
               <span className="text-sm text-gray-700">Mis en avant</span>
             </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.isNew}
+                onChange={(e) => set('isNew', e.target.checked)}
+                className="w-4 h-4 rounded accent-gray-900" />
+              <span className="text-sm text-gray-700">Nouveau</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.isPreorder}
+                onChange={(e) => set('isPreorder', e.target.checked)}
+                className="w-4 h-4 rounded accent-gray-900" />
+              <span className="text-sm text-gray-700">Précommande</span>
+            </label>
           </div>
+
+          {form.isPreorder && (
+            <Field label="Date de sortie (précommande)">
+              <input type="date" value={form.releaseDate}
+                onChange={(e) => set('releaseDate', e.target.value)} className={input} />
+            </Field>
+          )}
 
           {error && (
             <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>

@@ -15,21 +15,13 @@ export interface AccessoryProduct {
   colors: AccessoryColor[]
   gradientFrom: string
   gradientTo: string
+  imageUrl?: string
 }
 
-export interface AccessoryCategory {
-  id: string
-  label: string
-}
-
-export const ACCESSORY_CATEGORIES: AccessoryCategory[] = [
-  { id: 'porte-cles', label: 'Porte-clés' },
-  { id: 'sangles',    label: 'Sangles' },
-  { id: 'casquettes', label: 'Casquettes' },
-  { id: 'gourdes',    label: 'Gourdes' },
-  { id: 'pochettes',  label: 'Pochettes' },
-  { id: 'entretien',  label: 'Entretien' },
-]
+// Les sous-catégories d'accessoires (Porte-clés, Sangles…) ne sont plus listées
+// ici : ce sont des catégories enfants d'« Accessoires », gérées depuis
+// /admin/categories et lues via fetchCategories(). Le champ `category` ci-dessus
+// porte le slug de la catégorie du produit.
 
 export const ACCESSORY_SORT_OPTIONS = [
   { label: 'En vedette', value: 'featured' },
