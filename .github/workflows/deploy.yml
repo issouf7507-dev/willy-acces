@@ -23,7 +23,7 @@ jobs:
         with:
           version: 10
 
-      - name: Get pnpm store path (yash)
+      - name: Get pnpm store path
         id: pnpm-cache
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
