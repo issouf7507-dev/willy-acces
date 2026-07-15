@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 interface Props {
   eyebrow?: string
   title?: string
@@ -5,6 +7,10 @@ interface Props {
   cta?: { label: string; href: string }
   accent?: boolean
   gradient?: string
+  /** Photo de fond. Le dégradé sert alors de couleur d'attente pendant le chargement. */
+  image?: string
+  /** Texte alternatif de la photo. Décoratif (alt vide) si non fourni. */
+  imageAlt?: string
 }
 
 export default function ImageBanner({
@@ -14,9 +20,24 @@ export default function ImageBanner({
   cta,
   accent = false,
   gradient = 'from-zinc-800 via-zinc-900 to-black',
+  image,
+  imageAlt,
 }: Props) {
   return (
     <div className={`relative h-[60vh] min-h-[380px] bg-gradient-to-br ${gradient} flex items-center justify-center text-center overflow-hidden`}>
+      {image && (
+        <>
+          <img
+            src={image}
+            alt={imageAlt ?? ''}
+            loading="lazy"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {/* Voile sombre : sans lui, le texte blanc passe mal sur les zones claires. */}
+          <div className="absolute inset-0 bg-black/50" />
+        </>
+      )}
+
       {/* Decorative pattern */}
       <div
         className="absolute inset-0 opacity-5"
@@ -46,8 +67,8 @@ export default function ImageBanner({
           </p>
         )}
         {cta && (
-          <a
-            href={cta.href}
+          <Link
+            to={cta.href}
             className={`inline-block px-8 py-4 text-sm font-bold uppercase tracking-widest border-2 transition-all ${
               accent
                 ? 'bg-[#FFEA3B] text-zinc-900 border-[#FFEA3B] hover:bg-yellow-300 hover:border-yellow-300'
@@ -55,7 +76,7 @@ export default function ImageBanner({
             }`}
           >
             {cta.label}
-          </a>
+          </Link>
         )}
       </div>
     </div>

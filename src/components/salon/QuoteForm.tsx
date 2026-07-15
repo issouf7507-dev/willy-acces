@@ -5,6 +5,7 @@ import {
   QUOTE_LOCATIONS,
   QUOTE_BUDGETS,
 } from '../../data/salon'
+import { api } from '../../lib/api'
 
 interface FormState {
   name: string
@@ -32,6 +33,7 @@ const labelClass = 'block text-xs font-bold uppercase tracking-wide text-zinc-70
 export default function QuoteForm() {
   const [form, setForm] = useState<FormState>(EMPTY)
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -45,7 +47,7 @@ export default function QuoteForm() {
         : [...f.prestations, p],
     }))
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim() || !form.phone.trim()) {
       setError('Merci d’indiquer au moins votre nom et votre téléphone.')
@@ -56,8 +58,30 @@ export default function QuoteForm() {
       return
     }
     setError('')
-    // TODO : brancher sur l’API / WhatsApp. Pour l’instant, confirmation côté client.
-    setSubmitted(true)
+    setSubmitting(true)
+    try {
+      await api.post('/quotes', {
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim() || undefined,
+        services: form.prestations,
+        occasion: form.occasion || undefined,
+        eventDate: form.date || undefined,
+        location: form.location,
+        guests: Number(form.guests) || 1,
+        budget: form.budget || undefined,
+        message: form.message.trim() || undefined,
+      })
+      setSubmitted(true)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Une erreur est survenue. Merci de réessayer.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (submitted) {
@@ -240,9 +264,10 @@ export default function QuoteForm() {
 
       <button
         type="submit"
-        className="w-full bg-black text-white text-sm font-bold uppercase tracking-widest py-4 hover:bg-zinc-800 transition-colors"
+        disabled={submitting}
+        className="w-full bg-black text-white text-sm font-bold uppercase tracking-widest py-4 hover:bg-zinc-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        Demander mon devis
+        {submitting ? 'Envoi en cours…' : 'Demander mon devis'}
       </button>
       <p className="text-xs text-zinc-400 text-center">
         Réponse sous 24 h. Aucun engagement.

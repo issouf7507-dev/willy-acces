@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 interface Collection {
   name: string
   href: string
@@ -12,9 +14,9 @@ export default function CollectionGrid({ collections }: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-5 md:px-12 pb-10 max-w-[1600px] mx-auto">
       {collections.map((col) => (
-        <a
+        <Link
           key={col.name}
-          href={col.href}
+          to={col.href}
           className="group relative aspect-square overflow-hidden block"
         >
           {/* Background */}
@@ -36,7 +38,7 @@ export default function CollectionGrid({ collections }: Props) {
               </svg>
             </div>
           </div>
-        </a>
+        </Link>
       ))}
     </div>
   )

@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import { formatPrice } from '../lib/utils'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -96,7 +97,7 @@ export default function Preorders() {
                 </div>
 
                 <p className="text-xs text-zinc-400 mb-6">
-                  Disponible le {DATE_FMT.format(new Date(featured.releaseDate))} — ${featured.price}.00 USD
+                  Disponible le {DATE_FMT.format(new Date(featured.releaseDate))} — {formatPrice(featured.price)}
                 </p>
 
                 <button className="px-10 py-4 bg-black text-white text-sm font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors">

@@ -1,7 +1,13 @@
 import { Navigate } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth, STAFF_ROLES } from '../../context/AuthContext'
 
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+interface Props {
+  children: React.ReactNode
+  /** Rôles autorisés. Par défaut : tout le personnel du back-office. */
+  roles?: readonly string[]
+}
+
+export default function ProtectedRoute({ children, roles = STAFF_ROLES }: Props) {
   const { user, loading } = useAuth()
 
   if (loading) {
@@ -13,6 +19,16 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }
 
   if (!user) return <Navigate to="/admin/login" replace />
+
+  // Vérifier le rôle et pas seulement la présence d'un compte : un CUSTOMER
+  // peut obtenir un token via /auth/register, qui est une route publique.
+  if (!roles.includes(user.role)) {
+    // Membre du back-office mais rôle insuffisant (ex. STAFF sur /admin/users) :
+    // on le renvoie au tableau de bord. Le sortir vers /login n'aurait pas de
+    // sens puisqu'il est déjà connecté.
+    const isStaff = STAFF_ROLES.includes(user.role as (typeof STAFF_ROLES)[number])
+    return <Navigate to={isStaff ? '/admin' : '/admin/login'} replace />
+  }
 
   return <>{children}</>
 }

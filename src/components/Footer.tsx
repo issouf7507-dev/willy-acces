@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
 const links = {
-  Support: ['Log In for Order Status', 'Shipping', 'Returns', 'Warranty', 'FAQs', 'Contact Us', 'Dealer Locator'],
-  Company: ['Our Story', 'Blog Stories', 'Move Your Way', 'Drop Shop PDX', 'Retailers', 'Pro Program', 'Careers'],
-  Resources: ['Reviews', 'Privacy Statement', 'Terms of Use', 'Accessibility Policy', 'Sitemap'],
+  Aide: ['Suivi de commande', 'Livraison', 'Retours', 'Garantie', 'FAQ', 'Nous contacter', 'Points de vente'],
+  'À propos': ['Notre histoire', 'Le blog', 'Nos engagements', 'Boutique', 'Revendeurs', 'Programme Pro', 'Recrutement'],
+  Ressources: ['Avis clients', 'Politique de confidentialité', 'Conditions d’utilisation', 'Accessibilité', 'Plan du site'],
 }
 
 function SocialIcon({ children, href }: { children: React.ReactNode; href: string }) {
@@ -23,9 +23,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Newsletter */}
           <div>
-            <h3 className="font-black text-sm uppercase tracking-widest mb-4">Stay Connected</h3>
+            <h3 className="font-black text-sm uppercase tracking-widest mb-4">Restons en contact</h3>
             <p className="text-sm text-zinc-500 mb-5 leading-relaxed">
-              Sign up for updates on new gear, drops, and stories.
+              Inscrivez-vous pour suivre nos nouveautés et actualités.
             </p>
             <form
               onSubmit={e => { e.preventDefault(); setEmail('') }}
@@ -35,7 +35,7 @@ export default function Footer() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="Your email"
+                placeholder="Votre e-mail"
                 className="flex-1 border border-zinc-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors"
                 required
               />

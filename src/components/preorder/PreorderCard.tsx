@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatPrice } from '../../lib/utils'
 import type { PreorderProduct } from '../../data/preorders'
 import Countdown from './Countdown'
 
@@ -25,11 +26,15 @@ export default function PreorderCard({ product }: { product: PreorderProduct }) 
             {released ? 'Disponible' : 'Précommande'}
           </span>
 
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.6" opacity="0.2">
-            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <path d="M16 10a4 4 0 01-8 0" />
-          </svg>
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} className="absolute inset-0 w-full h-full object-cover" />
+          ) : (
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.6" opacity="0.2">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 01-8 0" />
+            </svg>
+          )}
 
           {/* Countdown overlay */}
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur px-3 py-2 rounded shadow-sm">
@@ -46,7 +51,7 @@ export default function PreorderCard({ product }: { product: PreorderProduct }) 
         <p className="text-xs text-zinc-500 leading-snug line-clamp-2 min-h-[2rem]">{product.tagline}</p>
 
         <div className="flex items-center gap-2 pt-0.5">
-          <span className="text-sm font-semibold">${product.price}.00 USD</span>
+          <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
         </div>
 
         <p className="text-xs text-zinc-400">

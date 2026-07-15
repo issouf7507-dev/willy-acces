@@ -21,6 +21,12 @@ export interface BagProduct {
   volume?: string
   weather?: string[]
   inStock: boolean
+  /** Slug de la catégorie en base (renseigné quand le produit vient de l'API). */
+  categorySlug?: string
+  /** URL de la première image (renseignée quand le produit vient de l'API). */
+  imageUrl?: string
+  /** Toutes les images du produit (renseignées quand le produit vient de l'API). */
+  images?: string[]
 }
 
 export const BAGS: BagProduct[] = [
@@ -194,17 +200,17 @@ export const WEATHER_FILTERS = [
 ]
 
 export const SORT_OPTIONS = [
-  { label: 'Featured', value: 'featured' },
-  { label: 'Price: Low to High', value: 'price-asc' },
-  { label: 'Price: High to Low', value: 'price-desc' },
-  { label: 'Best Rating', value: 'rating' },
-  { label: 'Most Reviews', value: 'reviews' },
+  { label: 'En vedette', value: 'featured' },
+  { label: 'Prix : croissant', value: 'price-asc' },
+  { label: 'Prix : décroissant', value: 'price-desc' },
+  { label: 'Mieux notés', value: 'rating' },
+  { label: 'Plus d’avis', value: 'reviews' },
 ]
 
 export const SUB_CATEGORIES = [
-  { label: 'COMMUTE', href: '#commute' },
-  { label: 'WATERPROOF', href: '#waterproof' },
-  { label: 'TRAVEL', href: '#travel' },
-  { label: 'ON-BIKE', href: '#on-bike' },
+  { label: 'TRAJET', href: '#commute' },
+  { label: 'IMPERMÉABLE', href: '#waterproof' },
+  { label: 'VOYAGE', href: '#travel' },
+  { label: 'VÉLO', href: '#on-bike' },
   { label: 'BAG FINDER QUIZ', href: '#quiz' },
 ]

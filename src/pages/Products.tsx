@@ -1,29 +1,27 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import CollectionProductCard from '../components/collection/CollectionProductCard'
 import { SORT_OPTIONS, type BagProduct } from '../data/bags'
-import { fetchBags } from '../lib/storefront'
+import {
+  fetchCatalog,
+  fetchCategories,
+  rootCategories,
+  categorySlugsWithDescendants,
+  countInCategory,
+  type StoreCategory,
+} from '../lib/storefront'
+import { formatPrice } from '../lib/utils'
 
 const PAGE_SIZE = 12
 
-interface Category {
+interface CategoryTab {
   id: string
   label: string
   count: number
-  filter: (p: BagProduct) => boolean
 }
-
-const CATEGORY_DEFS: { id: string; label: string; filter: (p: BagProduct) => boolean }[] = [
-  { id: 'all',       label: 'Tous',          filter: () => true },
-  { id: 'sacs',      label: 'Sacs à dos',    filter: (p) => p.name.toLowerCase().includes('pack') },
-  { id: 'slings',    label: 'Slings',         filter: (p) => p.name.toLowerCase().includes('sling') },
-  { id: 'messagers', label: 'Messagers',      filter: (p) => p.name.toLowerCase().includes('messenger') },
-  { id: 'velo',      label: 'Vélo',           filter: (p) => p.tags.includes('bike bag') },
-  { id: 'pochettes', label: 'Pochettes',      filter: (p) => p.name.toLowerCase().includes('pouch') || p.name.toLowerCase().includes('flap') },
-]
 
 function Stars({ rating }: { rating: number }) {
   const n = Math.round(rating)
@@ -61,7 +59,7 @@ function BestSellersStrip({ products }: { products: BagProduct[] }) {
               <p className="text-xs font-bold uppercase tracking-wide truncate group-hover:underline">{p.name}</p>
               <div className="flex items-center justify-between mt-0.5">
                 <Stars rating={p.rating} />
-                <span className="text-xs text-zinc-500">${p.price}</span>
+                <span className="text-xs text-zinc-500">{formatPrice(p.price)}</span>
               </div>
             </Link>
           ))}
@@ -73,29 +71,44 @@ function BestSellersStrip({ products }: { products: BagProduct[] }) {
 
 export default function Products() {
   const [products, setProducts] = useState<BagProduct[]>([])
+  const [categories, setCategories] = useState<StoreCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeCategory, setActiveCategory] = useState('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  // `|| 'all'` et pas `??` : un `?category=` vide doit retomber sur "Tous".
+  const activeCategory = searchParams.get('category') || 'all'
   const [sortBy, setSortBy] = useState('featured')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    fetchBags()
-      .then(setProducts)
+    Promise.all([fetchCatalog(), fetchCategories()])
+      .then(([prods, cats]) => { setProducts(prods); setCategories(cats) })
       .catch(() => setError('Impossible de charger les produits.'))
       .finally(() => setLoading(false))
   }, [])
 
-  const CATEGORIES: Category[] = useMemo(
-    () => CATEGORY_DEFS.map(d => ({ ...d, count: products.filter(d.filter).length })),
-    [products]
-  )
-
-  const activeCat = CATEGORIES.find(c => c.id === activeCategory) ?? CATEGORIES[0]
+  // Onglets = catégories racines du back-office (on masque celles sans produit).
+  // Le compte inclut les sous-catégories, sinon « Accessoires » afficherait 1
+  // alors que ses 17 produits vivent dans ses enfants.
+  const CATEGORIES: CategoryTab[] = useMemo(() => {
+    const tabs = rootCategories(categories)
+      .map(c => ({
+        id: c.slug,
+        label: c.name,
+        count: countInCategory(categories, c.slug, products),
+      }))
+      .filter(c => c.count > 0)
+    return [{ id: 'all', label: 'Tous', count: products.length }, ...tabs]
+  }, [categories, products])
 
   const filtered = useMemo(() => {
-    let result = products.filter(activeCat?.filter ?? (() => true))
+    // Filtrer sur une racine doit ramener aussi les produits de ses enfants.
+    let result = products
+    if (activeCategory !== 'all') {
+      const covered = new Set(categorySlugsWithDescendants(categories, activeCategory))
+      result = products.filter(p => p.categorySlug && covered.has(p.categorySlug))
+    }
 
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -112,13 +125,13 @@ export default function Products() {
       case 'reviews':    result = [...result].sort((a, b) => b.reviews - a.reviews); break
     }
     return result
-  }, [products, activeCategory, sortBy, search, activeCat])
+  }, [products, categories, activeCategory, sortBy, search])
 
   const displayed = filtered.slice(0, page * PAGE_SIZE)
   const hasMore = displayed.length < filtered.length
 
   const handleCategoryChange = (id: string) => {
-    setActiveCategory(id)
+    setSearchParams(id === 'all' ? {} : { category: id }, { replace: true })
     setPage(1)
   }
 
@@ -222,7 +235,7 @@ export default function Products() {
             </div>
             <p className="text-zinc-400 font-medium mb-2">Aucun produit trouvé</p>
             <button
-              onClick={() => { setSearch(''); setActiveCategory('all'); setPage(1) }}
+              onClick={() => { setSearch(''); handleCategoryChange('all') }}
               className="text-xs font-bold uppercase tracking-wide underline text-zinc-500 hover:text-black transition-colors"
             >
               Réinitialiser

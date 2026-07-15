@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   LayoutDashboard, Package, ShoppingBag, Tag, Ticket,
   Settings, LogOut, ChevronRight, Store, Image, HelpCircle,
-  Menu, X,
+  Menu, X, Scissors, ImageIcon, FileText, Users as UsersIcon,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -29,15 +29,20 @@ function Sidebar({
         </div>
       </div>
 
-      {/* Nav */}
+      {/* Nav — les entrées hors du rôle courant sont masquées (ex. Utilisateurs). */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
-        {nav.map((section) => (
+        {nav.map((section) => {
+          const items = section.items.filter(
+            (i) => !i.roles || (user && i.roles.includes(user.role)),
+          )
+          if (items.length === 0) return null
+          return (
           <div key={section.label}>
             <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
               {section.label}
             </p>
             <div className="space-y-0.5">
-              {section.items.map(({ to, icon: Icon, label, exact }) => (
+              {items.map(({ to, icon: Icon, label, exact }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -58,7 +63,8 @@ function Sidebar({
               ))}
             </div>
           </div>
-        ))}
+          )
+        })}
       </nav>
 
       {/* User */}
@@ -85,6 +91,8 @@ interface NavItem {
   icon: typeof LayoutDashboard
   label: string
   exact?: boolean
+  /** Rôles voyant l'entrée. Absent = tout le personnel du back-office. */
+  roles?: readonly string[]
 }
 interface NavSection { label: string; items: NavItem[] }
 
@@ -107,6 +115,14 @@ const nav: NavSection[] = [
     items: [
       { to: '/admin/orders', icon: ShoppingBag, label: 'Commandes' },
       { to: '/admin/coupons', icon: Ticket, label: 'Coupons' },
+      { to: '/admin/quotes', icon: FileText, label: 'Devis salon' },
+    ],
+  },
+  {
+    label: 'Salon',
+    items: [
+      { to: '/admin/salon/services', icon: Scissors, label: 'Prestations' },
+      { to: '/admin/salon/gallery', icon: ImageIcon, label: 'Galerie' },
     ],
   },
   {
@@ -119,6 +135,7 @@ const nav: NavSection[] = [
   {
     label: 'Configuration',
     items: [
+      { to: '/admin/users', icon: UsersIcon, label: 'Utilisateurs', roles: ['ADMIN'] },
       { to: '/admin/settings', icon: Settings, label: 'Paramètres' },
     ],
   },

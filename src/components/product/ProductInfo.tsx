@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatPrice } from '../../lib/utils'
 import { Link } from 'react-router-dom'
 import type { ProductDetailData } from '../../data/productDetail'
 import { useCart } from '../../context/CartContext'
@@ -90,7 +91,7 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
     <div className="px-5 py-6 lg:px-8 lg:py-8">
       {/* Breadcrumb — desktop only */}
       <nav className="hidden lg:flex items-center gap-1.5 text-xs text-zinc-500 mb-5 flex-wrap">
-        <Link to="/" className="hover:text-black transition-colors">Home</Link>
+        <Link to="/" className="hover:text-black transition-colors">Accueil</Link>
         <span>/</span>
         <Link to={`/collections/${product.collectionHandle}`} className="hover:text-black transition-colors capitalize">
           {product.collectionName}
@@ -107,19 +108,19 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
         </div>
         <div className="flex items-center gap-2.5">
           {variant.compareAtPrice && variant.compareAtPrice > variant.price && (
-            <span className="text-sm text-zinc-400 line-through">${variant.compareAtPrice}.00</span>
+            <span className="text-sm text-zinc-400 line-through">{formatPrice(variant.compareAtPrice)}</span>
           )}
-          <span className="text-base font-semibold">${variant.price}.00 USD</span>
+          <span className="text-base font-semibold">{formatPrice(variant.price)}</span>
         </div>
       </div>
 
       {/* Color picker */}
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-2.5">
-          <span className="text-sm text-zinc-500">Color:</span>
+          <span className="text-sm text-zinc-500">Couleur :</span>
           <span className="text-sm font-semibold">{variant.name}</span>
           {!variant.available && (
-            <span className="text-xs text-zinc-400">(Sold Out)</span>
+            <span className="text-xs text-zinc-400">(Épuisé)</span>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -155,7 +156,7 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
       {/* Related sizes */}
       {product.relatedSizes && product.relatedSizes.length > 0 && (
         <div className="flex items-center gap-4 mb-6">
-          <span className="text-sm text-zinc-500">Size:</span>
+          <span className="text-sm text-zinc-500">Taille :</span>
           <div className="flex gap-3">
             {product.relatedSizes.map(s => (
               <Link
@@ -195,19 +196,19 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
           {adding ? (
             <>
               <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Adding…
+              Ajout…
             </>
           ) : added ? (
             <>
               <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
                 <path d="M1 6l4 4 8-8" stroke="white" strokeWidth="2" strokeLinecap="round" />
               </svg>
-              Added to cart!
+              Ajouté au panier !
             </>
           ) : variant.available ? (
-            'Add to cart'
+            'Ajouter au panier'
           ) : (
-            'Sold Out'
+            'Épuisé'
           )}
         </button>
 
@@ -217,17 +218,17 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
             className="w-full py-3.5 flex items-center justify-center gap-2 rounded-sm hover:opacity-90 transition-opacity"
             style={{ backgroundColor: '#5433EB' }}
           >
-            <span className="text-xs text-white font-medium">Buy with</span>
+            <span className="text-xs text-white font-medium">Acheter avec</span>
             <ShopPayLogo />
           </button>
         )}
 
         {variant.available && (
           <p className="text-center text-xs text-zinc-400">
-            Or 4 interest-free payments of{' '}
-            <span className="font-semibold text-zinc-600">${(variant.price / 4).toFixed(2)}</span>{' '}
-            with{' '}
-            <span className="font-semibold text-zinc-600">Shop Pay</span>
+            Ou 4 paiements sans frais de{' '}
+            <span className="font-semibold text-zinc-600">{formatPrice(variant.price / 4)}</span>{' '}
+            avec{' '}
+            <span className="font-semibold text-zinc-600">Mobile Money</span>
           </p>
         )}
       </div>
@@ -236,11 +237,11 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
       <div className="border-t border-b border-zinc-100 py-4 mb-6 space-y-3">
         <div className="flex items-center gap-3">
           <TruckIcon />
-          <p className="text-xs text-zinc-500">Free US shipping over $110 and 30-day returns.</p>
+          <p className="text-xs text-zinc-500">Livraison offerte dès 50 000 FCFA et retours sous 30 jours.</p>
         </div>
         <div className="flex items-center gap-3">
           <ShieldIcon />
-          <p className="text-xs text-zinc-500">Chrome bags carry a Lifetime Warranty.</p>
+          <p className="text-xs text-zinc-500">Tous nos sacs sont garantis à vie.</p>
         </div>
       </div>
 
@@ -268,7 +269,7 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-zinc-400 mb-2">Style: {product.sku}</p>
+            <p className="text-xs text-zinc-400 mb-2">Référence : {product.sku}</p>
           </>
         )}
 
@@ -276,7 +277,7 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
           onClick={() => setFeaturesExpanded(v => !v)}
           className="text-sm text-zinc-500 hover:text-black transition-colors font-medium"
         >
-          {featuresExpanded ? '- See Less' : '+ See More'}
+          {featuresExpanded ? '- Voir moins' : '+ Voir plus'}
         </button>
       </div>
 
@@ -286,7 +287,7 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
           onClick={() => setSizingOpen(v => !v)}
           className="w-full py-4 flex items-center justify-between text-sm font-semibold hover:opacity-70 transition-opacity"
         >
-          <span>Sizing & Materials</span>
+          <span>Dimensions & Matériaux</span>
           <svg
             width="10" height="6" viewBox="0 0 10 6" fill="none"
             className={`transition-transform duration-200 ${sizingOpen ? 'rotate-180' : ''}`}
@@ -297,16 +298,16 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
 
         {sizingOpen && (
           <ul className="pb-5 space-y-1.5">
-            <li className="text-sm text-zinc-600">Volume: {product.sizing.volume}</li>
-            <li className="text-sm text-zinc-600">Dimensions: {product.sizing.dimensions}</li>
-            <li className="text-sm text-zinc-600">Weight: {product.sizing.weight}</li>
+            <li className="text-sm text-zinc-600">Volume : {product.sizing.volume}</li>
+            <li className="text-sm text-zinc-600">Dimensions : {product.sizing.dimensions}</li>
+            <li className="text-sm text-zinc-600">Poids : {product.sizing.weight}</li>
             {product.sizing.deviceSleeve && (
-              <li className="text-sm text-zinc-600">Device sleeve: {product.sizing.deviceSleeve}</li>
+              <li className="text-sm text-zinc-600">Compartiment ordinateur : {product.sizing.deviceSleeve}</li>
             )}
             {product.sizing.waterBottlePocket && (
-              <li className="text-sm text-zinc-600">Water bottle pocket: {product.sizing.waterBottlePocket}</li>
+              <li className="text-sm text-zinc-600">Poche bouteille : {product.sizing.waterBottlePocket}</li>
             )}
-            <li className="text-sm text-zinc-500 pt-1">Spot clean and hang dry.</li>
+            <li className="text-sm text-zinc-500 pt-1">Nettoyage local, séchage à l’air libre.</li>
           </ul>
         )}
       </div>

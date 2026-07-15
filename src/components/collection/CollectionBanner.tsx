@@ -12,7 +12,7 @@ export default function CollectionBanner({ title, description, totalCount }: Pro
       {/* Breadcrumbs */}
       <div className="max-w-[1600px] mx-auto px-5 md:px-12 pt-6 pb-0">
         <nav aria-label="Breadcrumbs" className="text-xs text-zinc-500 flex items-center gap-1.5">
-          <a href="/" className="hover:text-black transition-colors">Home</a>
+          <a href="/" className="hover:text-black transition-colors">Accueil</a>
           <span>/</span>
           <span className="text-black font-medium">{title}</span>
         </nav>
