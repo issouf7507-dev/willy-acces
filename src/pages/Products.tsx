@@ -13,7 +13,6 @@ import {
   countInCategory,
   type StoreCategory,
 } from '../lib/storefront'
-import { formatPrice } from '../lib/utils'
 
 const PAGE_SIZE = 12
 
@@ -21,52 +20,6 @@ interface CategoryTab {
   id: string
   label: string
   count: number
-}
-
-function Stars({ rating }: { rating: number }) {
-  const n = Math.round(rating)
-  return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }, (_, i) => (
-        <svg key={i} width="9" height="9" viewBox="0 0 15 15" className={i < n ? 'text-zinc-800' : 'text-zinc-200'} fill="currentColor">
-          <path d="M7.5 0L9.586 5.273L15 5.73L10.875 9.445L12.135 15L7.5 12.023L2.865 15L4.125 9.445L0 5.73L5.414 5.273L7.5 0Z" />
-        </svg>
-      ))}
-    </div>
-  )
-}
-
-function BestSellersStrip({ products }: { products: BagProduct[] }) {
-  const top = useMemo(() => [...products].sort((a, b) => b.reviews - a.reviews).slice(0, 4), [products])
-  if (top.length === 0) return null
-  return (
-    <section className="border-b border-zinc-100">
-      <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-10">
-        <div className="flex items-end justify-between mb-6">
-          <h2 className="text-xl font-black uppercase tracking-tight">Meilleures ventes</h2>
-          <Link to="/collections/bags" className="text-xs font-bold uppercase tracking-wide text-zinc-500 hover:text-black transition-colors underline underline-offset-2">
-            Voir tout
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {top.map(p => (
-            <Link key={p.id} to={`/products/${p.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`} className="group">
-              <div className={`aspect-square bg-gradient-to-br ${p.gradientFrom} ${p.gradientTo} mb-3 overflow-hidden flex items-center justify-center`}>
-                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="0.6" opacity="0.2" className="transition-transform duration-500 group-hover:scale-110">
-                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 01-8 0" />
-                </svg>
-              </div>
-              <p className="text-xs font-bold uppercase tracking-wide truncate group-hover:underline">{p.name}</p>
-              <div className="flex items-center justify-between mt-0.5">
-                <Stars rating={p.rating} />
-                <span className="text-xs text-zinc-500">{formatPrice(p.price)}</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
 }
 
 export default function Products() {
@@ -156,9 +109,6 @@ export default function Products() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-zinc-800 rounded-full blur-3xl opacity-50 translate-x-1/2 -translate-y-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-zinc-700 rounded-full blur-3xl opacity-30 translate-y-1/2 pointer-events-none" />
       </section>
-
-      {/* Best sellers strip */}
-      <BestSellersStrip products={products} />
 
       {/* Main catalog */}
       <section className="max-w-[1600px] mx-auto px-5 md:px-12 py-10">

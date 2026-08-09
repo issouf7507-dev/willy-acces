@@ -49,6 +49,21 @@ function categoryOptions(cats: Category[]): { id: string; label: string }[] {
   return out
 }
 
+/**
+ * Aperçu du SKU généré par l'API quand le champ est laissé vide (même règle de
+ * préfixe côté serveur, voir products.service.ts). Le numéro n'est pas connu ici :
+ * il dépend des produits déjà en base.
+ */
+function skuPreview(categoryName?: string): string {
+  const letters = (categoryName ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+  const prefix = (letters.slice(0, 3) || 'PRD').padEnd(3, 'X')
+  return `${prefix}-001 (auto)`
+}
+
 export default function ProductFormModal({ product, onClose, onSaved }: Props) {
   const isNew = !product
   const [categories, setCategories] = useState<Category[]>([])
@@ -156,8 +171,10 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         name: form.name,
         description: form.description || undefined,
         price: Number(form.price),
-        compareAtPrice: form.compareAtPrice ? Number(form.compareAtPrice) : undefined,
-        stock: Number(form.stock),
+        // L'API refuse 0 (prix strictement positif) : un « 0 » saisi ou un champ
+        // vide doivent donc partir en `undefined`, pas en 0.
+        compareAtPrice: Number(form.compareAtPrice) > 0 ? Number(form.compareAtPrice) : undefined,
+        stock: Number(form.stock) || 0,
         sku: form.sku || undefined,
         categoryId: form.categoryId || undefined,
         isActive: form.isActive,
@@ -184,6 +201,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
   }
 
   const hasUploading = images.some((img) => img.uploading)
+  const skuPlaceholder = skuPreview(categories.find((c) => c.id === form.categoryId)?.name)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -197,7 +215,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+        <form id="product-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
           <Field label="Nom *">
             <input required value={form.name} onChange={(e) => set('name', e.target.value)}
               className={input} placeholder="Nom du produit" />
@@ -226,7 +244,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             </Field>
             <Field label="SKU">
               <input value={form.sku} onChange={(e) => set('sku', e.target.value)}
-                className={input} placeholder="REF-001" />
+                className={input} placeholder={skuPlaceholder} />
+              <p className="mt-1 text-xs text-gray-400">Laissez vide : généré automatiquement.</p>
             </Field>
           </div>
 
@@ -350,8 +369,12 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
             Annuler
           </button>
+          {/* Le bouton est hors du <form> (footer figé) : l'attribut `form` le
+              rattache quand même, sinon les champs `required` ne sont pas validés
+              et l'API répond 422 sur un prix ou un nom vide. */}
           <button
-            onClick={(e) => handleSubmit(e)}
+            type="submit"
+            form="product-form"
             disabled={loading || hasUploading}
             className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
           >

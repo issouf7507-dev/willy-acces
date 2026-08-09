@@ -3,7 +3,7 @@ import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import CollectionBanner from '../components/collection/CollectionBanner'
-import FilterDrawer, { type ActiveFilters } from '../components/collection/FilterDrawer'
+import FilterDrawer, { matchesVolume, type ActiveFilters } from '../components/collection/FilterDrawer'
 import CollectionProductCard from '../components/collection/CollectionProductCard'
 import { SORT_OPTIONS, type BagProduct } from '../data/bags'
 import { fetchBags } from '../lib/storefront'
@@ -15,26 +15,9 @@ const DEFAULT_FILTERS: ActiveFilters = {
   activities: [],
   volumes: [],
   weather: [],
-  priceMax: 300,
+  // Aucun plafond par défaut : les bornes du curseur sont déduites du catalogue.
+  priceMax: null,
   inStockOnly: false,
-}
-
-function volumeToLiters(v: string | undefined): number {
-  if (!v) return 0
-  const n = parseFloat(v)
-  return isNaN(n) ? 0 : n
-}
-
-function productMatchesVolume(productVolume: string | undefined, filterVolumes: string[]): boolean {
-  if (filterVolumes.length === 0) return true
-  const liters = volumeToLiters(productVolume)
-  return filterVolumes.some(v => {
-    if (v === '0 - 10 Liters') return liters > 0 && liters <= 10
-    if (v === '11 - 20 Liters') return liters > 10 && liters <= 20
-    if (v === '21 - 30 Liters') return liters > 20 && liters <= 30
-    if (v === '31+ Liters') return liters > 30
-    return false
-  })
 }
 
 export default function Bags() {
@@ -66,12 +49,14 @@ export default function Bags() {
       result = result.filter(p => p.weather?.some(w => filters.weather.includes(w)))
     }
     if (filters.volumes.length > 0) {
-      result = result.filter(p => productMatchesVolume(p.volume, filters.volumes))
+      result = result.filter(p => matchesVolume(p.volume, filters.volumes))
     }
     if (filters.inStockOnly) {
       result = result.filter(p => p.inStock && !p.soldOut)
     }
-    result = result.filter(p => p.price <= filters.priceMax)
+    if (filters.priceMax !== null) {
+      result = result.filter(p => p.price <= filters.priceMax!)
+    }
 
     switch (sortBy) {
       case 'price-asc': result.sort((a, b) => a.price - b.price); break
@@ -92,7 +77,7 @@ export default function Bags() {
     filters.weather.length +
     filters.volumes.length +
     (filters.inStockOnly ? 1 : 0) +
-    (filters.priceMax < 300 ? 1 : 0)
+    (filters.priceMax !== null ? 1 : 0)
 
   const clearAll = () => {
     setFilters(DEFAULT_FILTERS)
@@ -108,6 +93,7 @@ export default function Bags() {
         title="Sacs"
         description="Éprouvés depuis des années. Robustes, résistants aux intempéries et conçus pour tout emporter."
         totalCount={filtered.length}
+        parentSlug="sacs"
       />
 
       <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-6">
@@ -197,6 +183,7 @@ export default function Bags() {
               filters={filters}
               onChange={(f) => { setFilters(f); setPage(1) }}
               totalCount={filtered.length}
+              products={products}
             />
           </div>
 
@@ -209,6 +196,7 @@ export default function Bags() {
               filters={filters}
               onChange={(f) => { setFilters(f); setPage(1) }}
               totalCount={filtered.length}
+              products={products}
             />
 
             {/* Product count - desktop */}

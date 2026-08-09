@@ -10,6 +10,8 @@ import { fetchProductDetail } from '../lib/storefront'
 
 function Stars({ rating, count }: { rating: number; count: number }) {
   const filled = Math.round(rating)
+  // Sans avis, cinq étoiles grises se lisent comme une note de 0/5.
+  if (count === 0) return null
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex gap-0.5">
@@ -101,16 +103,16 @@ export default function ProductDetail() {
             <h1 className="text-base font-bold uppercase mb-1">{product.name}</h1>
             <div className="flex items-center justify-between">
               <Stars rating={product.rating} count={product.reviews} />
-              <div className="flex items-center gap-2">
+              <div className="flex items-baseline gap-2">
                 {selectedVariant.compareAtPrice && selectedVariant.compareAtPrice > selectedVariant.price && (
                   <span className="text-xs text-zinc-400 line-through">{formatPrice(selectedVariant.compareAtPrice)}</span>
                 )}
-                <span className="text-sm font-semibold">{formatPrice(selectedVariant.price)}</span>
+                <span className="text-xl font-bold tracking-tight">{formatPrice(selectedVariant.price)}</span>
               </div>
             </div>
           </div>
 
-          <ProductGallery product={product} activeGradient={activeGradient} />
+          <ProductGallery key={product.handle} product={product} activeGradient={activeGradient} />
         </div>
 
         {/* RIGHT: Info column — sticky on desktop */}
@@ -127,7 +129,10 @@ export default function ProductDetail() {
       <div className="lg:hidden sticky bottom-0 z-30 bg-white border-t border-zinc-100 px-4 py-3 flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold uppercase truncate">{product.name}</p>
-          <p className="text-xs text-zinc-500">{formatPrice(selectedVariant.price)} — {selectedVariant.name}</p>
+          <p className="text-xs text-zinc-500">
+            {formatPrice(selectedVariant.price)}
+            {selectedVariant.name && ` — ${selectedVariant.name}`}
+          </p>
         </div>
         <button
           onClick={() => {

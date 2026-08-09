@@ -1,10 +1,28 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useSettings } from '../context/SettingsContext'
 
-const links = {
-  Aide: ['Suivi de commande', 'Livraison', 'Retours', 'Garantie', 'FAQ', 'Nous contacter', 'Points de vente'],
-  'À propos': ['Notre histoire', 'Le blog', 'Nos engagements', 'Boutique', 'Revendeurs', 'Programme Pro', 'Recrutement'],
-  Ressources: ['Avis clients', 'Politique de confidentialité', 'Conditions d’utilisation', 'Accessibilité', 'Plan du site'],
-}
+/**
+ * Colonnes du pied de page. Seules les destinations qui existent réellement sont
+ * listées — les liens « placeholder » du template (blog, revendeurs, recrutement…)
+ * ont été retirés plutôt que de pointer vers `#`.
+ */
+const links: { title: string; items: { label: string; to: string }[] }[] = [
+  {
+    title: 'Boutique',
+    items: [
+      { label: 'Tout le catalogue', to: '/products' },
+      { label: 'Nouveautés', to: '/collections/new-arrivals' },
+      { label: 'Précommandes', to: '/collections/produits-a-venir' },
+      { label: 'Accessoires', to: '/accessories' },
+      { label: 'Salon de beauté', to: '/salon-de-beaute' },
+    ],
+  },
+  {
+    title: 'Aide',
+    items: [{ label: 'FAQ', to: '/faq' }],
+  },
+]
 
 function SocialIcon({ children, href }: { children: React.ReactNode; href: string }) {
   return (
@@ -16,6 +34,8 @@ function SocialIcon({ children, href }: { children: React.ReactNode; href: strin
 
 export default function Footer() {
   const [email, setEmail] = useState('')
+  const { settings } = useSettings()
+  const storeName = settings.storeName ?? 'Willy Accessoire'
 
   return (
     <footer className="border-t border-zinc-200 bg-white mt-4">
@@ -49,20 +69,61 @@ export default function Footer() {
           </div>
 
           {/* Link columns */}
-          {Object.entries(links).map(([title, items]) => (
+          {links.map(({ title, items }) => (
             <div key={title}>
               <h3 className="font-black text-sm uppercase tracking-widest mb-4">{title}</h3>
               <ul className="space-y-2.5">
                 {items.map(item => (
-                  <li key={item}>
-                    <a href="#" className="text-sm text-zinc-500 hover:text-black transition-colors">
-                      {item}
-                    </a>
+                  <li key={item.to}>
+                    <Link to={item.to} className="text-sm text-zinc-500 hover:text-black transition-colors">
+                      {item.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
             </div>
           ))}
+
+          {/* Contact — uniquement ce qui est renseigné dans /admin/settings */}
+          {(settings.contactEmail || settings.contactPhone || settings.whatsappNumber) && (
+            <div>
+              <h3 className="font-black text-sm uppercase tracking-widest mb-4">Nous contacter</h3>
+              <ul className="space-y-2.5">
+                {settings.contactEmail && (
+                  <li>
+                    <a
+                      href={`mailto:${settings.contactEmail}`}
+                      className="text-sm text-zinc-500 hover:text-black transition-colors"
+                    >
+                      {settings.contactEmail}
+                    </a>
+                  </li>
+                )}
+                {settings.contactPhone && (
+                  <li>
+                    <a
+                      href={`tel:${settings.contactPhone.replace(/\s+/g, '')}`}
+                      className="text-sm text-zinc-500 hover:text-black transition-colors"
+                    >
+                      {settings.contactPhone}
+                    </a>
+                  </li>
+                )}
+                {settings.whatsappNumber && (
+                  <li>
+                    <a
+                      href={`https://wa.me/${settings.whatsappNumber.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-zinc-500 hover:text-black transition-colors"
+                    >
+                      WhatsApp
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Bottom bar */}
@@ -95,7 +156,7 @@ export default function Footer() {
           </div>
 
           <p className="text-xs text-zinc-400 text-center">
-            © 2026, Mon E-Commerce. Tous droits réservés.
+            © {new Date().getFullYear()}, {storeName}. Tous droits réservés.
           </p>
         </div>
       </div>

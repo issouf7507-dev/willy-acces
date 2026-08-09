@@ -8,6 +8,7 @@ import NewArrivals from './pages/NewArrivals'
 import Preorders from './pages/Preorders'
 import Accessories from './pages/Accessories'
 import SalonDeBeaute from './pages/SalonDeBeaute'
+import Faq from './pages/Faq'
 import Products from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
 import Checkout from './pages/Checkout'
@@ -19,6 +20,7 @@ import QuickBuyDrawer from './components/cart/QuickBuyDrawer'
 import { EdgeStoreProvider } from './lib/edgestore'
 import { API_ORIGIN } from './lib/api'
 import { AuthProvider } from './context/AuthContext'
+import { SettingsProvider } from './context/SettingsContext'
 import ProtectedRoute from './components/admin/ProtectedRoute'
 
 // Admin : chargé à la demande (code-splitting — sort recharts/formulaires du bundle vitrine)
@@ -34,6 +36,7 @@ const AdminFaq = lazy(() => import('./pages/admin/content/Faq'))
 const AdminSalonServices = lazy(() => import('./pages/admin/content/SalonServices'))
 const AdminSalonGallery = lazy(() => import('./pages/admin/content/SalonGallery'))
 const AdminQuotes = lazy(() => import('./pages/admin/Quotes'))
+const AdminReviews = lazy(() => import('./pages/admin/Reviews'))
 const AdminSettings = lazy(() => import('./pages/admin/Settings'))
 const AdminUsers = lazy(() => import('./pages/admin/Users'))
 
@@ -49,6 +52,7 @@ export default function App() {
   return (
     <EdgeStoreProvider basePath={`${API_ORIGIN}/edgestore`}>
     <AuthProvider>
+    <SettingsProvider>
       <Routes>
         {/* ── Boutique ────────────────────────────────── */}
         <Route path="/" element={<Home />} />
@@ -57,6 +61,7 @@ export default function App() {
         <Route path="/collections/produits-a-venir" element={<Preorders />} />
         <Route path="/accessories" element={<Accessories />} />
         <Route path="/salon-de-beaute" element={<SalonDeBeaute />} />
+        <Route path="/faq" element={<Faq />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:handle" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
@@ -87,6 +92,7 @@ export default function App() {
           <Route path="salon/services" element={<AdminSalonServices />} />
           <Route path="salon/gallery" element={<AdminSalonGallery />} />
           <Route path="quotes" element={<AdminQuotes />} />
+          <Route path="reviews" element={<AdminReviews />} />
           <Route path="settings" element={<AdminSettings />} />
           {/* Gestion des comptes : ADMIN uniquement. */}
           <Route
@@ -99,6 +105,7 @@ export default function App() {
       {/* Drawers boutique (hors admin) */}
       <CartDrawer />
       <QuickBuyDrawer />
+    </SettingsProvider>
     </AuthProvider>
     </EdgeStoreProvider>
   )

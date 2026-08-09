@@ -24,7 +24,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const json = await res.json()
 
   if (!res.ok) {
-    throw new Error(json.error ?? `Erreur ${res.status}`)
+    // Un 422 renvoie « Données invalides » + un détail par champ. Sans ce détail,
+    // le formulaire affiche un message générique et l'admin ne sait pas quoi corriger.
+    const details = json.details as Record<string, string[]> | undefined
+    const fields = details
+      ? Object.entries(details)
+          .map(([field, msgs]) => `${field} : ${(msgs ?? []).join(', ')}`)
+          .join(' — ')
+      : ''
+    const message = json.error ?? `Erreur ${res.status}`
+    throw new Error(fields ? `${message} (${fields})` : message)
   }
 
   return json.data as T

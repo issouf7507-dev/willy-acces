@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../../lib/api'
-import { Plus, Pencil, Trash2, Loader2, Tag } from 'lucide-react'
+import { useEdgeStore } from '../../lib/edgestore'
+import { Plus, Pencil, Trash2, Loader2, Tag, ImagePlus, Upload } from 'lucide-react'
 
 interface Category {
   id: string; name: string; slug: string; isActive: boolean; parentId: string | null
+  imageUrl: string | null
   _count: { products: number }; children: Category[]
 }
 
@@ -12,6 +14,8 @@ interface FormState {
   isActive: boolean
   /** '' = catégorie de premier niveau. */
   parentId: string
+  /** '' = pas d'image ; affichée sur les cartes de catégorie de la page d'accueil. */
+  imageUrl: string
 }
 
 function Row({ cat, onEdit, onRemove, nested = false }: {
@@ -22,6 +26,11 @@ function Row({ cat, onEdit, onRemove, nested = false }: {
 }) {
   return (
     <div className={`flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors ${nested ? 'pl-12 bg-gray-50/30' : ''}`}>
+      <div className={`shrink-0 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center ${nested ? 'w-8 h-8' : 'w-11 h-11'}`}>
+        {cat.imageUrl
+          ? <img src={cat.imageUrl} alt="" className="w-full h-full object-cover" />
+          : <Tag className={`text-gray-300 ${nested ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />}
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           {nested && <span className="text-gray-300 select-none">└─</span>}
@@ -52,9 +61,24 @@ export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Category | null | 'new'>(null)
-  const [form, setForm] = useState<FormState>({ name: '', isActive: true, parentId: '' })
+  const [form, setForm] = useState<FormState>({ name: '', isActive: true, parentId: '', imageUrl: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const { edgestore } = useEdgeStore()
+
+  async function uploadImage(file: File) {
+    setUploading(true); setError('')
+    try {
+      const res = await edgestore.publicImages.upload({ file })
+      setForm((f) => ({ ...f, imageUrl: res.url }))
+    } catch {
+      setError("Échec du téléchargement de l'image")
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const load = () => {
     setLoading(true)
@@ -69,9 +93,12 @@ export default function Categories() {
   const roots = categories.filter(c => !c.parentId)
   const childrenOf = (id: string) => categories.filter(c => c.parentId === id)
 
-  function openNew() { setForm({ name: '', isActive: true, parentId: '' }); setEditing('new'); setError('') }
+  function openNew() {
+    setForm({ name: '', isActive: true, parentId: '', imageUrl: '' })
+    setEditing('new'); setError('')
+  }
   function openEdit(c: Category) {
-    setForm({ name: c.name, isActive: c.isActive, parentId: c.parentId ?? '' })
+    setForm({ name: c.name, isActive: c.isActive, parentId: c.parentId ?? '', imageUrl: c.imageUrl ?? '' })
     setEditing(c); setError('')
   }
 
@@ -84,6 +111,9 @@ export default function Categories() {
         name: form.name,
         isActive: form.isActive,
         parentId: form.parentId || null,
+        // '' plutôt que null : le champ reste optionnel côté API, et une chaîne
+        // vide est traitée comme « pas d'image » partout côté vitrine.
+        imageUrl: form.imageUrl.trim(),
       }
       if (editing === 'new') {
         await api.post('/categories', payload)
@@ -143,8 +173,8 @@ export default function Categories() {
 
       {/* Inline modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4 my-8">
             <h2 className="font-semibold text-gray-900">
               {editing === 'new' ? 'Nouvelle catégorie' : 'Modifier la catégorie'}
             </h2>
@@ -153,6 +183,36 @@ export default function Categories() {
               <input autoFocus value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
                 placeholder="Nom de la catégorie" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Image</label>
+              {form.imageUrl ? (
+                <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden group">
+                  <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => setForm(f => ({ ...f, imageUrl: '' }))}
+                    className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => !uploading && fileRef.current?.click()}
+                  className="flex flex-col items-center justify-center gap-2 aspect-[4/3] border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
+                  {uploading ? (
+                    <><Upload className="w-7 h-7 text-gray-400 animate-bounce" /><span className="text-sm text-gray-500">Téléchargement…</span></>
+                  ) : (
+                    <><ImagePlus className="w-7 h-7 text-gray-400" /><span className="text-sm text-gray-500">Cliquez pour uploader une image</span></>
+                  )}
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f?.type.startsWith('image/')) uploadImage(f); e.target.value = '' }} />
+              <input value={form.imageUrl}
+                onChange={(e) => setForm(f => ({ ...f, imageUrl: e.target.value }))}
+                className="mt-2 w-full px-3.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                placeholder="…ou coller une URL d'image" />
+              <p className="text-xs text-gray-400 mt-1.5">
+                Affichée sur la carte de la catégorie sur la page d'accueil.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Catégorie parente</label>
@@ -182,7 +242,7 @@ export default function Categories() {
                 className="flex-1 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                 Annuler
               </button>
-              <button onClick={save} disabled={saving}
+              <button onClick={save} disabled={saving || uploading}
                 className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {editing === 'new' ? 'Créer' : 'Enregistrer'}
