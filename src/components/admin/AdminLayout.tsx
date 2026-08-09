@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   LayoutDashboard, Package, ShoppingBag, Tag, Ticket,
   Settings, LogOut, ChevronRight, Store, Image, HelpCircle,
-  Menu, X, Scissors, ImageIcon, FileText, Users as UsersIcon,
+  Menu, X, Scissors, ImageIcon, FileText, Users as UsersIcon, MessageSquare,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -116,6 +116,7 @@ const nav: NavSection[] = [
       { to: '/admin/orders', icon: ShoppingBag, label: 'Commandes' },
       { to: '/admin/coupons', icon: Ticket, label: 'Coupons' },
       { to: '/admin/quotes', icon: FileText, label: 'Devis salon' },
+      { to: '/admin/reviews', icon: MessageSquare, label: 'Avis produits' },
     ],
   },
   {

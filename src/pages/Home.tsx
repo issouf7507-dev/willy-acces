@@ -5,13 +5,19 @@ import Hero from '../components/Hero'
 import SectionTitle from '../components/SectionTitle'
 import CollectionGrid from '../components/CollectionGrid'
 import FeaturedProducts from '../components/FeaturedProducts'
-import Testimonials from '../components/Testimonials'
+import Testimonials, { type Testimonial } from '../components/Testimonials'
 import ImageBanner from '../components/ImageBanner'
 import Footer from '../components/Footer'
 import bannerCollection from '../assets/banner-collection.webp'
 import bannerAccessories from '../assets/banner-accessories.webp'
 import type { Product } from '../components/ProductCard'
-import { fetchFeatured, fetchBagCards, fetchCategories, rootCategories } from '../lib/storefront'
+import {
+  fetchFeatured,
+  fetchBagCards,
+  fetchCategories,
+  fetchFeaturedReviews,
+  rootCategories,
+} from '../lib/storefront'
 
 /** Dégradé par catégorie, avec repli cyclique pour toute nouvelle catégorie créée en admin. */
 const CATEGORY_GRADIENTS: Record<string, string> = {
@@ -25,24 +31,27 @@ const FALLBACK_GRADIENTS = [
   'from-stone-600 to-stone-900',
 ]
 
-const testimonials = [
-  { text: "Ce sac est superbe ! Belle taille, fabrication solide, design au top.", author: "Aïcha O.", rating: 5 },
-  { text: "La qualité est vraiment au rendez-vous. J'adore ce nouveau sac, il est parfait !", author: "Nadège B.", rating: 4 },
-  { text: "J'adore le côté imperméable et la polyvalence de ce sac. Ultra résistant.", author: "Jean H.", rating: 4 },
-  { text: "Confort et durabilité incroyables, fonctionnalité parfaite.", author: "Olivier E.", rating: 5 },
-  { text: "Je suis impressionné. Livraison rapide et qualité au top. Merci !", author: "Maurice R.", rating: 5 },
-]
-
 export default function Home() {
   const [bestsellers, setBestsellers] = useState<Product[]>([])
   const [backpacks, setBackpacks] = useState<Product[]>([])
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [mainCollections, setMainCollections] = useState<
-    { name: string; href: string; gradient: string }[]
+    { name: string; href: string; gradient: string; image: string | null }[]
   >([])
 
   useEffect(() => {
     fetchFeatured(8).then(setBestsellers).catch(() => setBestsellers([]))
     fetchBagCards(8).then(setBackpacks).catch(() => setBackpacks([]))
+    // Témoignages : vrais avis clients approuvés depuis le back-office.
+    fetchFeaturedReviews(6)
+      .then(reviews =>
+        setTestimonials(
+          reviews
+            .filter(r => r.body)
+            .map(r => ({ text: r.body!, author: r.author, rating: r.rating })),
+        ),
+      )
+      .catch(() => setTestimonials([]))
     fetchCategories()
       .then(cats =>
         setMainCollections(
@@ -51,6 +60,7 @@ export default function Home() {
             name: c.name,
             href: `/products?category=${encodeURIComponent(c.slug)}`,
             gradient: CATEGORY_GRADIENTS[c.slug] ?? FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length],
+            image: c.imageUrl,
           })),
         ),
       )
@@ -94,9 +104,13 @@ export default function Home() {
           imageAlt="Randonneur de dos, sac au dos, face à un lac de montagne dans la brume"
         />
 
-        {/* Reviews */}
-        <SectionTitle eyebrow="Des milliers d'avis qui confirment la qualité" />
-        <Testimonials testimonials={testimonials} />
+        {/* Avis clients — masqué tant qu'aucun avis n'est approuvé en back-office */}
+        {testimonials.length > 0 && (
+          <>
+            <SectionTitle eyebrow="Ce qu'en disent nos clientes et clients" />
+            <Testimonials testimonials={testimonials} />
+          </>
+        )}
 
         {/* Feature collections */}
         {mainCollections.length > 0 && (

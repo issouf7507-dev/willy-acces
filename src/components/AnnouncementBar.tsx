@@ -1,10 +1,21 @@
-const messages = [
-  'LIVRAISON OFFERTE DÈS 50 000 FCFA',
-  'EMPORTEZ L’ESSENTIEL PARTOUT',
-  'NOUVEAUTÉS DISPONIBLES',
-]
+import { useSettings } from '../context/SettingsContext'
 
+/**
+ * Bandeau défilant du haut de page. Le texte vient du réglage `announcement`
+ * (/admin/settings) : plusieurs messages peuvent être séparés par un « | ».
+ * Aucun message configuré → le bandeau ne s'affiche pas du tout.
+ */
 export default function AnnouncementBar() {
+  const { settings } = useSettings()
+
+  const messages = (settings.announcement ?? '')
+    .split('|')
+    .map((m) => m.trim())
+    .filter(Boolean)
+
+  if (messages.length === 0) return null
+
+  // On triple la liste pour que le défilement continu n'ait pas de trou.
   const items = [...messages, ...messages, ...messages]
 
   return (

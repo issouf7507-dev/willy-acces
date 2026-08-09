@@ -1,8 +1,8 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatPrice } from '../../lib/utils'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
-import { RECOMMENDATIONS } from '../../data/recommendations'
+import { fetchRecommendations, type RecommendationCardData } from '../../lib/storefront'
 
 const FREE_SHIPPING_THRESHOLD = 110
 
@@ -45,17 +45,21 @@ function FreeShippingBar({ total }: { total: number }) {
   )
 }
 
-function RecommendationCard({ product }: { product: typeof RECOMMENDATIONS[0] }) {
+function RecommendationCard({ product }: { product: RecommendationCardData }) {
   const { addItem } = useCart()
 
   return (
     <div className="flex-shrink-0 w-44 bg-white rounded-sm flex flex-col snap-start">
-      {/* Image placeholder */}
-      <div className={`aspect-square ${product.gradient} rounded-sm flex items-center justify-center`}>
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="0.8">
-          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-          <line x1="3" y1="6" x2="21" y2="6" />
-        </svg>
+      {/* Image (back-office) */}
+      <div className={`relative aspect-square bg-gradient-to-br ${product.gradientFrom} ${product.gradientTo} rounded-sm flex items-center justify-center overflow-hidden`}>
+        {product.imageUrl ? (
+          <img src={product.imageUrl} alt={product.name} className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="0.8">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+          </svg>
+        )}
       </div>
       {/* Info */}
       <div className="p-2 flex flex-col gap-1.5 flex-1">
@@ -69,7 +73,7 @@ function RecommendationCard({ product }: { product: typeof RECOMMENDATIONS[0] })
           </span>
         </div>
         <button
-          onClick={() => addItem({ id: product.id, name: product.name, price: product.price, color: 'Default', gradientFrom: 'from-zinc-200', gradientTo: 'to-zinc-300' })}
+          onClick={() => addItem({ id: product.id, productId: product.productId, name: product.name, price: product.price, compareAtPrice: product.compareAtPrice, color: 'Default', gradientFrom: product.gradientFrom, gradientTo: product.gradientTo })}
           className="mt-auto text-xs font-bold uppercase tracking-wide border border-zinc-300 px-3 py-1.5 hover:bg-black hover:text-white hover:border-black transition-all"
         >
           + Ajouter
@@ -83,6 +87,18 @@ export default function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, total, itemCount } = useCart()
   const navigate = useNavigate()
   const recoRef = useRef<HTMLDivElement>(null)
+  const [recommendations, setRecommendations] = useState<RecommendationCardData[]>([])
+
+  // Recommandations issues du back-office (produits mis en avant).
+  useEffect(() => {
+    let alive = true
+    fetchRecommendations(8)
+      .then((r) => alive && setRecommendations(r))
+      .catch(() => alive && setRecommendations([]))
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const goToCheckout = () => {
     closeCart()
@@ -168,7 +184,9 @@ export default function CartDrawer() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm leading-snug">{item.name}</p>
                       <p className="text-sm text-zinc-500 mt-0.5">{formatPrice(item.price)}</p>
-                      <p className="text-xs text-zinc-400 mt-0.5">{item.color}</p>
+                      {item.color && (
+                        <p className="text-xs text-zinc-400 mt-0.5">{item.color}</p>
+                      )}
 
                       {/* Quantity + Remove */}
                       <div className="flex items-center gap-4 mt-2">
@@ -205,7 +223,8 @@ export default function CartDrawer() {
                 ))}
               </div>
 
-              {/* Recommendations */}
+              {/* Recommendations (back-office) */}
+              {recommendations.length > 0 && (
               <div className="bg-zinc-100 px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="font-bold text-sm">Vous aimerez aussi</p>
@@ -235,11 +254,12 @@ export default function CartDrawer() {
                   ref={recoRef}
                   className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 snap-x snap-mandatory"
                 >
-                  {RECOMMENDATIONS.map(product => (
+                  {recommendations.map(product => (
                     <RecommendationCard key={product.id} product={product} />
                   ))}
                 </div>
               </div>
+              )}
             </div>
           )}
         </div>

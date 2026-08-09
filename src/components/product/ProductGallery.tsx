@@ -27,8 +27,14 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
       : img
   )
 
-  const prev = () => setActiveIndex(i => Math.max(0, i - 1))
-  const next = () => setActiveIndex(i => Math.min(images.length - 1, i + 1))
+  // Filet de sécurité si le produit change sous nos pieds : un index hérité du
+  // produit précédent pointerait dans le vide. Le remontage est assuré par la
+  // `key={product.handle}` posée par ProductDetail.
+  const safeIndex = Math.min(activeIndex, Math.max(0, images.length - 1))
+  const activeImage = images[safeIndex]
+
+  const prev = () => setActiveIndex(Math.max(0, safeIndex - 1))
+  const next = () => setActiveIndex(Math.min(images.length - 1, safeIndex + 1))
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startXRef.current = e.touches[0].clientX
@@ -54,7 +60,7 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
         <div className="overflow-hidden">
           <div
             className="flex transition-transform duration-300 ease-out"
-            style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+            style={{ transform: `translateX(-${safeIndex * 100}%)` }}
           >
             {images.map(img => (
               <div key={img.id} className="flex-shrink-0 w-full aspect-square">
@@ -72,13 +78,13 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
             <button
               key={i}
               onClick={() => setActiveIndex(i)}
-              className={`h-1 rounded-full transition-all duration-200 ${i === activeIndex ? 'bg-white w-5' : 'bg-white/50 w-1.5'}`}
+              className={`h-1 rounded-full transition-all duration-200 ${i === safeIndex ? 'bg-white w-5' : 'bg-white/50 w-1.5'}`}
             />
           ))}
         </div>
       </div>
 
-      {/* ── DESKTOP: 2-column image grid ── */}
+      {/* ── DESKTOP: vignettes + image principale ── */}
       <div className="hidden lg:block">
         {/* Thumbnail strip */}
         <div className="flex gap-1.5 mb-1.5 overflow-x-auto scrollbar-hide px-2 pt-2">
@@ -86,7 +92,7 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
             <button
               key={img.id}
               onClick={() => setActiveIndex(i)}
-              className={`flex-shrink-0 w-14 h-14 rounded-sm overflow-hidden border-2 transition-all ${i === activeIndex ? 'border-black' : 'border-transparent opacity-60 hover:opacity-100'}`}
+              className={`flex-shrink-0 w-14 h-14 rounded-sm overflow-hidden border-2 transition-all ${i === safeIndex ? 'border-black' : 'border-transparent opacity-60 hover:opacity-100'}`}
             >
               <div className={`w-full h-full bg-gradient-to-br ${img.gradientFrom} ${img.gradientTo} flex items-center justify-center`}>
                 {img.url ? <img src={img.url} alt={img.alt} className="w-full h-full object-cover" /> : <BagIcon size={20} />}
@@ -95,23 +101,42 @@ export default function ProductGallery({ product, activeGradient }: ProductGalle
           ))}
         </div>
 
-        {/* 2-col image grid */}
-        <div className="grid grid-cols-2 gap-0.5">
-          {images.map((img, i) => (
-            <div
-              key={img.id}
-              onClick={() => setActiveIndex(i)}
-              className={`aspect-square cursor-zoom-in relative overflow-hidden group ${i === 0 ? 'col-span-2' : ''}`}
-            >
-              <div className={`w-full h-full bg-gradient-to-br ${img.gradientFrom} ${img.gradientTo} flex items-center justify-center transition-transform duration-500 group-hover:scale-[1.02]`}>
-                {img.url ? <img src={img.url} alt={img.alt} className="w-full h-full object-cover" /> : <BagIcon size={i === 0 ? 100 : 64} />}
-              </div>
-              {i === activeIndex && (
-                <div className="absolute inset-0 ring-2 ring-inset ring-black/10 pointer-events-none" />
-              )}
+        {/* Image principale : c'est elle que les vignettes pilotent. Une grille
+            affichant toutes les images donnait l'impression que le clic sur une
+            vignette ne faisait rien, faute d'image à changer. */}
+        {activeImage && (
+          <div className="relative aspect-square overflow-hidden group">
+            <div className={`w-full h-full bg-gradient-to-br ${activeImage.gradientFrom} ${activeImage.gradientTo} flex items-center justify-center transition-transform duration-500 group-hover:scale-[1.02]`}>
+              {activeImage.url
+                ? <img src={activeImage.url} alt={activeImage.alt} className="w-full h-full object-cover" />
+                : <BagIcon size={100} />}
             </div>
-          ))}
-        </div>
+
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={prev}
+                  disabled={safeIndex === 0}
+                  aria-label="Image précédente"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-white/85 text-black opacity-0 group-hover:opacity-100 disabled:opacity-0 transition-opacity"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={next}
+                  disabled={safeIndex === images.length - 1}
+                  aria-label="Image suivante"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center bg-white/85 text-black opacity-0 group-hover:opacity-100 disabled:opacity-0 transition-opacity"
+                >
+                  ›
+                </button>
+                <span className="absolute bottom-3 right-3 px-2 py-0.5 text-[11px] tracking-wider bg-black/60 text-white">
+                  {safeIndex + 1}/{images.length}
+                </span>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </>
   )

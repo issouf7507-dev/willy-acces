@@ -1,26 +1,20 @@
 import { useEffect, useState } from 'react'
 import { formatPrice } from '../lib/utils'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useCart } from '../context/CartContext'
-import { api } from '../lib/api'
-import { fetchSettings, resolveCartToOrder } from '../lib/storefront'
+import { fetchSettings } from '../lib/storefront'
+import {
+  DEFAULT_WHATSAPP_NUMBER,
+  buildWhatsappOrderMessage,
+  whatsappHref,
+} from '../lib/whatsapp'
 
 const inputClass =
   'w-full px-3.5 py-2.5 text-sm border border-zinc-300 focus:border-black focus:outline-none bg-white transition-colors'
 const labelClass = 'block text-xs font-bold uppercase tracking-wide text-zinc-700 mb-1.5'
-
-interface OrderResponse {
-  id: string
-  orderNumber: string
-  subtotal: string | number
-  discountAmount: string | number
-  total: string | number
-  customerName?: string | null
-  items: { name: string; quantity: number; price: string | number; total: string | number }[]
-}
 
 interface FormState {
   name: string
@@ -38,19 +32,15 @@ const EMPTY: FormState = {
 
 const money = (n: number) => formatPrice(n)
 
-function whatsappHref(number: string, message: string): string {
-  const digits = number.replace(/\D/g, '')
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`
-}
-
 export default function Checkout() {
   const { items, total, updateQuantity, removeItem, clearCart } = useCart()
-  const navigate = useNavigate()
 
   const [form, setForm] = useState<FormState>(EMPTY)
-  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [whatsappNumber, setWhatsappNumber] = useState('')
+  /** Lien conservé après vidage du panier, pour rouvrir WhatsApp si l'onglet a été bloqué. */
+  const [sentHref, setSentHref] = useState('')
+  // Repli sur le numéro par défaut tant que le back-office ne surcharge pas le réglage.
+  const [whatsappNumber, setWhatsappNumber] = useState(DEFAULT_WHATSAPP_NUMBER)
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm(f => ({ ...f, [key]: value }))
@@ -59,68 +49,57 @@ export default function Checkout() {
     fetchSettings()
       .then(s => {
         const raw = s.whatsappNumber
-        if (typeof raw === 'string') setWhatsappNumber(raw)
+        // Un réglage vide ne doit pas écraser le numéro par défaut.
+        if (typeof raw === 'string' && raw.trim()) setWhatsappNumber(raw)
         else if (typeof raw === 'number') setWhatsappNumber(String(raw))
       })
-      .catch(() => { /* réglages indisponibles : bouton WhatsApp masqué */ })
+      .catch(() => { /* réglages indisponibles : on garde le numéro par défaut */ })
   }, [])
 
-  const buildWhatsappMessage = () => {
-    const lines = [
-      'Bonjour, je souhaite passer commande :',
-      ...items.map(i => `• ${i.quantity} x ${i.name}${i.color ? ` (${i.color})` : ''} — ${money(i.price * i.quantity)}`),
-      `Total : ${money(total)}`,
-    ]
-    if (form.name) lines.push(`Nom : ${form.name}`)
-    if (form.phone) lines.push(`Téléphone : ${form.phone}`)
-    if (form.address || form.city) lines.push(`Adresse : ${[form.address, form.city].filter(Boolean).join(', ')}`)
-    return lines.join('\n')
-  }
+  const buildMessage = () =>
+    buildWhatsappOrderMessage({
+      items: items.map(i => ({
+        name: i.name,
+        quantity: i.quantity,
+        variant: i.color || undefined,
+        lineTotal: money(i.price * i.quantity),
+      })),
+      total: money(total),
+      name: form.name.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+      email: form.email.trim() || undefined,
+      address: [form.address.trim(), form.city.trim()].filter(Boolean).join(', ') || undefined,
+      couponCode: form.couponCode.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+    })
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  /**
+   * La commande part uniquement sur WhatsApp : aucune commande n'est créée en base.
+   * Pas d'await avant `window.open`, sinon les navigateurs bloquent l'ouverture
+   * (elle ne serait plus rattachée au clic de l'utilisateur).
+   */
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
     if (items.length === 0) return
-    if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
-      setError('Merci de renseigner au moins votre nom, votre téléphone et votre adresse de livraison.')
+    if (
+      !form.name.trim() ||
+      !form.phone.trim() ||
+      !form.address.trim() ||
+      !form.city.trim()
+    ) {
+      setError(
+        'Merci de renseigner votre nom, votre téléphone, ainsi que votre adresse et votre ' +
+        'ville / quartier de livraison.',
+      )
       return
     }
 
-    setSubmitting(true)
-    try {
-      const { orderItems, unresolved } = await resolveCartToOrder(items)
-
-      if (orderItems.length === 0) {
-        setError(
-          "Aucun de ces articles n'est disponible à la commande en ligne pour le moment. " +
-          'Vous pouvez finaliser via WhatsApp.',
-        )
-        return
-      }
-
-      const noteParts = [
-        `Adresse : ${[form.address, form.city].filter(Boolean).join(', ')}`,
-        form.notes.trim() && `Note : ${form.notes.trim()}`,
-        unresolved.length > 0 && `Articles à confirmer (hors commande en ligne) : ${unresolved.join(', ')}`,
-      ].filter(Boolean)
-
-      const order = await api.post<OrderResponse>('/orders', {
-        items: orderItems,
-        customerName: form.name.trim(),
-        customerPhone: form.phone.trim(),
-        customerEmail: form.email.trim() || undefined,
-        couponCode: form.couponCode.trim() || undefined,
-        notes: noteParts.join(' — '),
-      })
-
-      clearCart()
-      navigate('/order-confirmation', { state: { order, unresolved } })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue. Réessayez.')
-    } finally {
-      setSubmitting(false)
-    }
+    const href = whatsappHref(whatsappNumber, buildMessage())
+    window.open(href, '_blank', 'noopener,noreferrer')
+    clearCart()
+    setSentHref(href)
   }
 
   return (
@@ -131,10 +110,40 @@ export default function Checkout() {
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 lg:py-12">
         <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tight mb-1">Commande</h1>
         <p className="text-sm text-zinc-500 mb-8">
-          Renseignez vos coordonnées ou commandez directement sur WhatsApp.
+          Renseignez vos coordonnées : la commande est finalisée sur WhatsApp.
         </p>
 
-        {items.length === 0 ? (
+        {sentHref ? (
+          <div className="bg-white border border-zinc-200 p-8 md:p-10 text-center max-w-xl mx-auto">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-black uppercase mb-2">WhatsApp ouvert</h2>
+            <p className="text-sm text-zinc-500 mb-6">
+              Votre récapitulatif est pré-rempli dans la conversation. Envoyez le message pour
+              finaliser : nous confirmons la disponibilité, le montant et la livraison.
+            </p>
+            <a
+              href={sentHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 text-white text-sm font-bold uppercase tracking-widest transition-opacity hover:opacity-90"
+              style={{ backgroundColor: '#25D366' }}
+            >
+              Rouvrir WhatsApp
+            </a>
+            <p className="text-xs text-zinc-400 mt-4">
+              L'onglet ne s'est pas ouvert ? Utilisez le bouton ci-dessus.
+            </p>
+            <div className="mt-6">
+              <Link to="/products" className="text-sm underline hover:text-black text-zinc-500">
+                Continuer mes achats
+              </Link>
+            </div>
+          </div>
+        ) : items.length === 0 ? (
           <div className="bg-white border border-zinc-200 p-10 text-center">
             <p className="text-zinc-500 mb-6">Votre panier est vide.</p>
             <Link
@@ -167,11 +176,11 @@ export default function Checkout() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass} htmlFor="c-address">Adresse de livraison *</label>
-                  <input id="c-address" className={inputClass} value={form.address} onChange={e => set('address', e.target.value)} required />
+                  <input id="c-address" className={inputClass} value={form.address} onChange={e => set('address', e.target.value)} required placeholder="Riviera 3, rue des Jardins" />
                 </div>
                 <div>
-                  <label className={labelClass} htmlFor="c-city">Ville / Quartier</label>
-                  <input id="c-city" className={inputClass} value={form.city} onChange={e => set('city', e.target.value)} />
+                  <label className={labelClass} htmlFor="c-city">Ville / Quartier *</label>
+                  <input id="c-city" className={inputClass} value={form.city} onChange={e => set('city', e.target.value)} required placeholder="Abidjan, Cocody" />
                 </div>
               </div>
 
@@ -191,40 +200,20 @@ export default function Checkout() {
                 <p className="text-sm text-red-600 bg-red-50 border border-red-100 px-3 py-2">{error}</p>
               )}
 
-              <div className="space-y-3">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full py-4 bg-black text-white text-sm font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {submitting ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Envoi en cours…
-                    </>
-                  ) : (
-                    `Passer la commande — ${money(total)}`
-                  )}
-                </button>
-
-                {whatsappNumber && (
-                  <a
-                    href={whatsappHref(whatsappNumber, buildWhatsappMessage())}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3.5 text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-white transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: '#25D366' }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.999-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                    </svg>
-                    Commander sur WhatsApp
-                  </a>
-                )}
-              </div>
+              <button
+                type="submit"
+                className="w-full py-4 text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2 text-white transition-opacity hover:opacity-90"
+                style={{ backgroundColor: '#25D366' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.999-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                Commander sur WhatsApp — {money(total)}
+              </button>
 
               <p className="text-xs text-zinc-400 text-center">
-                Paiement à la livraison ou à convenir. Nous vous recontactons pour confirmer.
+                La commande se finalise sur WhatsApp : votre récapitulatif y est pré-rempli.
+                Paiement à la livraison ou à convenir.
               </p>
             </form>
 
@@ -237,7 +226,7 @@ export default function Checkout() {
                     <div className={`w-16 h-16 flex-shrink-0 bg-gradient-to-br ${item.gradientFrom} ${item.gradientTo} rounded-sm`} />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm leading-snug truncate">{item.name}</p>
-                      <p className="text-xs text-zinc-400">{item.color}</p>
+                      {item.color && <p className="text-xs text-zinc-400">{item.color}</p>}
                       <div className="flex items-center gap-2 mt-1">
                         <div className="flex items-center border border-zinc-300">
                           <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 text-zinc-600 hover:bg-zinc-100 leading-none" aria-label="Diminuer">−</button>

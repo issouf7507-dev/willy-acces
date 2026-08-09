@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 interface Collection {
   name: string
   href: string
+  /** Repli quand la catégorie n'a pas d'image en back-office. */
   gradient: string
+  image?: string | null
 }
 
 interface Props {
@@ -19,13 +21,28 @@ export default function CollectionGrid({ collections }: Props) {
           to={col.href}
           className="group relative aspect-square overflow-hidden block"
         >
-          {/* Background */}
-          <div
-            className={`absolute inset-0 bg-gradient-to-br ${col.gradient} transition-transform duration-700 group-hover:scale-105`}
-          />
+          {/* Background : image de la catégorie, dégradé sinon */}
+          {col.image ? (
+            <img
+              src={col.image}
+              alt={col.name}
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          ) : (
+            <div
+              className={`absolute inset-0 bg-gradient-to-br ${col.gradient} transition-transform duration-700 group-hover:scale-105`}
+            />
+          )}
 
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/35 transition-colors duration-300" />
+          {/* Overlay — un peu plus dense sur photo pour garder le titre lisible */}
+          <div
+            className={`absolute inset-0 transition-colors duration-300 ${
+              col.image
+                ? 'bg-gradient-to-t from-black/70 via-black/25 to-black/10 group-hover:from-black/80'
+                : 'bg-black/20 group-hover:bg-black/35'
+            }`}
+          />
 
           {/* Content */}
           <div className="absolute inset-0 flex flex-col items-center justify-end pb-10 gap-3">
