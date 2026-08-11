@@ -1,7 +1,11 @@
 import { useState } from 'react'
-import { formatPrice } from '../../lib/utils'
+import { Link } from 'react-router-dom'
 import type { PreorderProduct } from '../../data/preorders'
+import { nameToHandle } from '../../data/productDetail'
+import { usePreorder } from '../../context/PreorderContext'
 import Countdown from './Countdown'
+import PreorderPrice from './PreorderPrice'
+import { toPreorderTarget } from './toPreorderTarget'
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
   day: 'numeric',
@@ -11,11 +15,12 @@ const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
 
 export default function PreorderCard({ product }: { product: PreorderProduct }) {
   const [hovered, setHovered] = useState(false)
+  const { open } = usePreorder()
   const released = new Date(product.releaseDate).getTime() <= Date.now()
 
   return (
     <div
-      className="group flex flex-col h-full"
+      className="group relative flex flex-col h-full"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -47,11 +52,23 @@ export default function PreorderCard({ product }: { product: PreorderProduct }) 
 
       {/* Info */}
       <div className="mt-3 space-y-1 flex flex-col flex-1">
-        <h3 className="font-bold text-sm leading-snug line-clamp-1">{product.name}</h3>
+        {/* Le lien s'étend sur toute la carte (pseudo-élément) : image + infos
+            cliquables, comme sur les cartes du catalogue. */}
+        <Link
+          to={`/products/${nameToHandle(product.name)}`}
+          className="font-bold text-sm leading-snug line-clamp-1 group-hover:underline after:absolute after:inset-0 after:z-10 after:content-['']"
+        >
+          {product.name}
+        </Link>
         <p className="text-xs text-zinc-500 leading-snug line-clamp-2 min-h-[2rem]">{product.tagline}</p>
 
-        <div className="flex items-center gap-2 pt-0.5">
-          <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
+        <div className="pt-0.5">
+          {/* Une fois sorti, le produit se vend au prix normal : plus de tarif
+              de précommande à annoncer. */}
+          <PreorderPrice
+            price={product.price}
+            compareAtPrice={released ? undefined : product.compareAtPrice}
+          />
         </div>
 
         <p className="text-xs text-zinc-400">
@@ -76,7 +93,8 @@ export default function PreorderCard({ product }: { product: PreorderProduct }) 
         <div className="flex-1" />
 
         <button
-          className="w-full bg-black text-white text-xs font-bold uppercase tracking-widest py-3 hover:bg-zinc-800 transition-colors"
+          onClick={() => open(toPreorderTarget(product))}
+          className="relative z-20 w-full bg-black text-white text-xs font-bold uppercase tracking-widest py-3 hover:bg-zinc-800 transition-colors"
         >
           {released ? 'Acheter' : 'Précommander'}
         </button>

@@ -3,6 +3,7 @@ import { formatPrice } from '../../lib/utils'
 import { Link } from 'react-router-dom'
 import type { ProductDetailData } from '../../data/productDetail'
 import { useCart } from '../../context/CartContext'
+import { usePreorder } from '../../context/PreorderContext'
 import ProductReviews from './ProductReviews'
 
 /**
@@ -46,12 +47,30 @@ interface ProductInfoProps {
 
 export default function ProductInfo({ product, selectedVariantIndex, onVariantChange }: ProductInfoProps) {
   const { addItem } = useCart()
+  const { open: openPreorder } = usePreorder()
   const [featuresExpanded, setFeaturesExpanded] = useState(false)
   const [sizingOpen, setSizingOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
 
   const variant = product.variants[selectedVariantIndex]
+
+  // Un produit pas encore sorti ne s'ajoute pas au panier : il passe par le
+  // formulaire de réservation, sans paiement.
+  const handlePreorder = () => {
+    openPreorder({
+      productId: product.productId,
+      name: product.name,
+      price: variant.price,
+      compareAtPrice: variant.compareAtPrice,
+      releaseDate: product.releaseDate,
+      imageUrl: product.imageUrl,
+      colors: product.hasColorVariants
+        ? product.variants.map(v => ({ name: v.name, hex: v.hex }))
+        : undefined,
+      defaultColor: product.hasColorVariants ? variant.name : undefined,
+    })
+  }
 
   const handleAddToCart = () => {
     if (!variant.available || adding) return
@@ -212,7 +231,7 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
       {/* Ajout au panier — placé après la description et la référence */}
       <div className="mt-5 mb-6">
         <button
-          onClick={handleAddToCart}
+          onClick={product.isPreorder ? handlePreorder : handleAddToCart}
           disabled={!variant.available || adding}
           data-pdp-atc
           className={`w-full py-4 text-sm font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
@@ -240,10 +259,12 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
               </svg>
               Ajouté au panier !
             </>
-          ) : variant.available ? (
-            'Ajouter au panier'
-          ) : (
+          ) : !variant.available ? (
             'Épuisé'
+          ) : product.isPreorder ? (
+            'Précommander'
+          ) : (
+            'Ajouter au panier'
           )}
         </button>
       </div>

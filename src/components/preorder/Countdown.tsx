@@ -26,8 +26,12 @@ function computeTimeLeft(target: number): TimeLeft {
 interface Props {
   /** Date de sortie au format ISO 8601 */
   releaseDate: string
-  /** Style compact (carte) ou large (bannière) */
-  size?: 'sm' | 'lg'
+  /**
+   * `sm` / `lg` : blocs chiffrés (carte de la page Précommandes, bannière).
+   * `inline` : une seule ligne, pour tenir dans la place d'une note en étoiles
+   * sur les cartes du catalogue.
+   */
+  size?: 'sm' | 'lg' | 'inline'
 }
 
 const pad = (n: number) => n.toString().padStart(2, '0')
@@ -47,6 +51,25 @@ export default function Countdown({ releaseDate, size = 'sm' }: Props) {
       <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-600">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
         Disponible maintenant
+      </span>
+    )
+  }
+
+  if (size === 'inline') {
+    // Au-delà d'un jour, les secondes n'apportent rien et font clignoter la
+    // carte à chaque tick : on n'affiche le détail fin qu'au dernier jour.
+    const label = timeLeft.days > 0
+      ? `J-${timeLeft.days} · ${pad(timeLeft.hours)}h`
+      : `${pad(timeLeft.hours)}h ${pad(timeLeft.minutes)}m ${pad(timeLeft.seconds)}s`
+
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 text-xs font-bold tabular-nums text-zinc-600"
+        role="timer"
+        aria-label={`Disponible dans ${timeLeft.days} jours ${timeLeft.hours} heures`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-zinc-900" />
+        {label}
       </span>
     )
   }

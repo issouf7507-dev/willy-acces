@@ -44,6 +44,12 @@ export interface ProductDetailData {
   gradientFrom: string
   gradientTo: string
   sku: string
+  /** Produit en précommande *en ce moment* (calculé par l'API). */
+  isPreorder: boolean
+  /** Date de sortie ISO, présente sur une précommande. */
+  releaseDate?: string
+  /** Image principale, pour le récapitulatif du formulaire de précommande. */
+  imageUrl?: string
   variants: DetailVariant[]
   /** Vrai seulement si le produit déclare de vrais coloris (metadata.colors). */
   hasColorVariants: boolean

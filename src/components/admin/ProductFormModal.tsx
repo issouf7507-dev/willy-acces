@@ -6,9 +6,13 @@ import { X, Loader2, Upload, Trash2, ImagePlus } from 'lucide-react'
 interface Category { id: string; name: string; parentId?: string | null; sortOrder?: number }
 interface Product {
   id: string; name: string; slug?: string; price: number | string
-  compareAtPrice?: number | string | null; stock: number; sku: string | null
+  promoPrice?: number | string | null
+  promoStartsAt?: string | null; promoEndsAt?: string | null
+  stock: number; sku: string | null
   description?: string | null; isActive: boolean; isFeatured: boolean
-  isNew?: boolean; isPreorder?: boolean; releaseDate?: string | null
+  isNew?: boolean; isPreorder?: boolean
+  preorderStartsAt?: string | null; releaseDate?: string | null
+  preorderPrice?: number | string | null
   categoryId?: string | null; images: { url: string; alt?: string | null }[]
 }
 
@@ -49,6 +53,45 @@ function categoryOptions(cats: Category[]): { id: string; label: string }[] {
   return out
 }
 
+const pad = (n: number) => String(n).padStart(2, '0')
+
+/** `YYYY-MM-DD` local pour un `<input type="date">`, à partir d'une date ISO. */
+function toDateInput(value?: string | null): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/**
+ * Les dates sont saisies au jour près mais stockées à la seconde : une promo
+ * « du 12 au 15 » doit démarrer au premier instant du 12 et courir toute la
+ * journée du 15. On envoie donc début de journée pour le début, fin de journée
+ * pour la fin — sinon la promo démarrerait ou s'arrêterait un jour trop tôt.
+ */
+function dayBoundaryISO(value: string, edge: 'start' | 'end'): string | undefined {
+  const [y, m, d] = value.split('-').map(Number)
+  if (!y || !m || !d) return undefined
+  const date = edge === 'start'
+    ? new Date(y, m - 1, d, 0, 0, 0, 0)
+    : new Date(y, m - 1, d, 23, 59, 59, 999)
+  return date.toISOString()
+}
+
+/** `2026-08-15` → `15 août 2026`, pour le récapitulatif de promotion. */
+function formatDay(value: string): string {
+  const [y, m, d] = value.split('-').map(Number)
+  if (!y || !m || !d) return value
+  return new Date(y, m - 1, d).toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'long', year: 'numeric',
+  })
+}
+
+function formatFcfa(value: string): string {
+  const n = Number(value)
+  return Number.isFinite(n) && n > 0 ? `${n.toLocaleString('fr-FR')} FCFA` : '—'
+}
+
 /**
  * Aperçu du SKU généré par l'API quand le champ est laissé vide (même règle de
  * préfixe côté serveur, voir products.service.ts). Le numéro n'est pas connu ici :
@@ -80,7 +123,9 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     name: product?.name ?? '',
     description: product?.description ?? '',
     price: String(product?.price ?? ''),
-    compareAtPrice: String(product?.compareAtPrice ?? ''),
+    promoPrice: String(product?.promoPrice ?? ''),
+    promoStartsAt: toDateInput(product?.promoStartsAt),
+    promoEndsAt: toDateInput(product?.promoEndsAt),
     stock: String(product?.stock ?? '0'),
     sku: product?.sku ?? '',
     categoryId: product?.categoryId ?? '',
@@ -88,7 +133,9 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     isFeatured: product?.isFeatured ?? false,
     isNew: product?.isNew ?? false,
     isPreorder: product?.isPreorder ?? false,
-    releaseDate: product?.releaseDate ? String(product.releaseDate).slice(0, 10) : '',
+    preorderStartsAt: toDateInput(product?.preorderStartsAt),
+    releaseDate: toDateInput(product?.releaseDate),
+    preorderPrice: String(product?.preorderPrice ?? ''),
   })
 
   useEffect(() => {
@@ -162,6 +209,10 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     setImages((prev) => prev.filter((_, j) => j !== idx))
   }
 
+  // Une promo se définit par un prix et une période : sans prix promo, les
+  // dates n'ont pas d'objet et rien n'est envoyé.
+  const hasPromo = Number(form.promoPrice) > 0
+
   async function handleSubmit(e: FormEvent | MouseEvent) {
     e.preventDefault()
     setError('')
@@ -172,8 +223,12 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         description: form.description || undefined,
         price: Number(form.price),
         // L'API refuse 0 (prix strictement positif) : un « 0 » saisi ou un champ
-        // vide doivent donc partir en `undefined`, pas en 0.
-        compareAtPrice: Number(form.compareAtPrice) > 0 ? Number(form.compareAtPrice) : undefined,
+        // vide partent en `null`, ce qui efface la promo côté serveur (`undefined`
+        // laisserait l'ancienne promo en place lors d'une modification).
+        promoPrice: hasPromo ? Number(form.promoPrice) : null,
+        // Début vide = la promo démarre immédiatement.
+        promoStartsAt: hasPromo ? dayBoundaryISO(form.promoStartsAt, 'start') ?? null : null,
+        promoEndsAt: hasPromo ? dayBoundaryISO(form.promoEndsAt, 'end') : null,
         stock: Number(form.stock) || 0,
         sku: form.sku || undefined,
         categoryId: form.categoryId || undefined,
@@ -181,7 +236,17 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         isFeatured: form.isFeatured,
         isNew: form.isNew,
         isPreorder: form.isPreorder,
-        releaseDate: form.isPreorder && form.releaseDate ? form.releaseDate : undefined,
+        // Ouverture vide = commandes ouvertes tout de suite. La date de sortie
+        // ferme la fenêtre : elle est prise au début de journée pour que le
+        // produit soit bien vendable normalement le jour même de sa sortie.
+        preorderStartsAt: form.isPreorder
+          ? dayBoundaryISO(form.preorderStartsAt, 'start') ?? null
+          : null,
+        releaseDate: form.isPreorder ? dayBoundaryISO(form.releaseDate, 'start') : null,
+        // Prix de précommande facultatif : vide, c'est le prix normal qui
+        // s'applique déjà pendant la période.
+        preorderPrice:
+          form.isPreorder && Number(form.preorderPrice) > 0 ? Number(form.preorderPrice) : null,
         images: images
           .filter((img) => !img.uploading && !img.error && img.url.startsWith('https://'))
           .map((img, sortOrder) => ({ url: img.url, alt: img.alt || undefined, sortOrder })),
@@ -201,7 +266,32 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
   }
 
   const hasUploading = images.some((img) => img.uploading)
+  const todayInput = toDateInput(new Date().toISOString())
   const skuPlaceholder = skuPreview(categories.find((c) => c.id === form.categoryId)?.name)
+
+  // Récapitulatif en clair : le back-office manipule des dates, mais ce qui
+  // compte pour l'admin c'est le prix affiché avant, pendant et après.
+  const promoSummary = (() => {
+    const normal = formatFcfa(form.price)
+    const promo = formatFcfa(form.promoPrice)
+    const debut = form.promoStartsAt ? `du ${formatDay(form.promoStartsAt)}` : 'dès l\'enregistrement'
+    const fin = form.promoEndsAt ? `au ${formatDay(form.promoEndsAt)} inclus` : '(fin à définir)'
+    return `${debut} ${fin}, le produit est vendu ${promo} avec ${normal} barré. En dehors de cette période, il est vendu ${normal}, sans prix barré.`
+  })()
+
+  const preorderSummary = (() => {
+    const ouverture = form.preorderStartsAt
+      ? `À partir du ${formatDay(form.preorderStartsAt)}`
+      : 'Dès l\'enregistrement'
+    if (!form.releaseDate) {
+      return `${ouverture}, le produit est proposé en précommande. Renseignez la date de sortie pour fermer la période.`
+    }
+    const normal = formatFcfa(form.price)
+    const tarif = Number(form.preorderPrice) > 0
+      ? `au prix de précommande de ${formatFcfa(form.preorderPrice)}`
+      : `au prix normal de ${normal}`
+    return `${ouverture}, le produit est proposé en précommande ${tarif}, avec un compte à rebours jusqu'au ${formatDay(form.releaseDate)}. Ce jour-là il sort du rayon Précommandes, repasse à ${normal} et se vend normalement. Avant l'ouverture, il n'apparaît pas en boutique.`
+  })()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -227,15 +317,34 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Prix (FCFA) *">
+            <Field label="Prix normal (FCFA) *">
               <input required type="number" min="0" step="1" value={form.price}
-                onChange={(e) => set('price', e.target.value)} className={input} placeholder="5000" />
+                onChange={(e) => set('price', e.target.value)} className={input} placeholder="6000" />
             </Field>
-            <Field label="Prix barré (FCFA)">
-              <input type="number" min="0" step="1" value={form.compareAtPrice}
-                onChange={(e) => set('compareAtPrice', e.target.value)} className={input} placeholder="6000" />
+            <Field label="Prix promo (FCFA)">
+              <input type="number" min="0" step="1" value={form.promoPrice}
+                onChange={(e) => set('promoPrice', e.target.value)} className={input} placeholder="5000" />
             </Field>
           </div>
+
+          {hasPromo && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+              <p className="text-sm font-medium text-gray-700">Période de la promotion</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Début">
+                  <input type="date" value={form.promoStartsAt}
+                    onChange={(e) => set('promoStartsAt', e.target.value)} className={input} />
+                </Field>
+                <Field label="Fin *">
+                  <input required type="date" min={form.promoStartsAt || todayInput} value={form.promoEndsAt}
+                    onChange={(e) => set('promoEndsAt', e.target.value)} className={input} />
+                </Field>
+              </div>
+
+              <p className="text-xs text-gray-500">{promoSummary}</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Stock">
@@ -352,10 +461,32 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
           </div>
 
           {form.isPreorder && (
-            <Field label="Date de sortie (précommande)">
-              <input type="date" value={form.releaseDate}
-                onChange={(e) => set('releaseDate', e.target.value)} className={input} />
-            </Field>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+              <p className="text-sm font-medium text-gray-700">Période de précommande</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Ouverture">
+                  <input type="date" value={form.preorderStartsAt}
+                    onChange={(e) => set('preorderStartsAt', e.target.value)} className={input} />
+                </Field>
+                <Field label="Date de sortie *">
+                  <input required type="date" min={form.preorderStartsAt || todayInput}
+                    value={form.releaseDate}
+                    onChange={(e) => set('releaseDate', e.target.value)} className={input} />
+                </Field>
+              </div>
+
+              <Field label="Prix précommande (FCFA)">
+                <input type="number" min="0" step="1" value={form.preorderPrice}
+                  onChange={(e) => set('preorderPrice', e.target.value)} className={input}
+                  placeholder={form.price || '20000'} />
+                <p className="mt-1 text-xs text-gray-400">
+                  Laissez vide pour vendre au prix normal pendant la précommande.
+                </p>
+              </Field>
+
+              <p className="text-xs text-gray-500">{preorderSummary}</p>
+            </div>
           )}
 
           {error && (

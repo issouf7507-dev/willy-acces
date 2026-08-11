@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { formatPrice } from '../../lib/utils'
 import type { AccessoryProduct } from '../../data/accessories'
 import { useQuickBuy } from '../../context/QuickBuyContext'
+import { usePreorder } from '../../context/PreorderContext'
+import ProductRibbon from '../ProductRibbon'
+import Countdown from '../preorder/Countdown'
 
 function Stars({ rating }: { rating: number }) {
   const filled = Math.round(rating)
@@ -23,10 +26,27 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
   const [activeColor, setActiveColor] = useState(0)
   const [hovered, setHovered] = useState(false)
   const { open } = useQuickBuy()
+  const { open: openPreorder } = usePreorder()
 
   const handleQuickBuy = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+
+    // Un produit pas encore sorti ne s'ajoute pas au panier : il passe par le
+    // formulaire de réservation, sans paiement.
+    if (isPreorder && product.productId) {
+      openPreorder({
+        productId: product.productId,
+        name: product.name,
+        price: product.price,
+        compareAtPrice: product.compareAtPrice,
+        releaseDate: product.releaseDate,
+        imageUrl: product.imageUrl,
+        colors: product.colors.map(c => ({ name: c.name, hex: c.hex })),
+      })
+      return
+    }
+
     open({
       id: product.id,
       name: product.name,
@@ -45,6 +65,8 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
     })
   }
 
+  const isPreorder = !!product.isPreorder
+
   const maxSwatches = 4
 
   return (
@@ -56,6 +78,7 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
       {/* Image */}
       <div className="relative overflow-hidden">
         <div className={`aspect-square bg-gradient-to-br ${product.gradientFrom} ${product.gradientTo} flex items-center justify-center`}>
+          <ProductRibbon price={product.price} compareAtPrice={product.compareAtPrice} isPreorder={isPreorder} />
           {product.imageUrl ? (
             <img src={product.imageUrl} alt={product.name} className="absolute inset-0 w-full h-full object-cover" />
           ) : (
@@ -74,7 +97,7 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
             onClick={handleQuickBuy}
             className="w-full bg-black text-white text-xs font-bold uppercase tracking-widest py-3 hover:bg-zinc-800 transition-colors"
           >
-            + Ajouter
+            {isPreorder ? 'Précommander' : '+ Ajouter'}
           </button>
         </div>
       </div>
@@ -83,10 +106,18 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
       <div className="mt-3 space-y-1 flex flex-col flex-1">
         <h3 className="font-bold text-sm leading-snug line-clamp-1">{product.name}</h3>
 
-        <div className="flex items-center gap-2">
-          <Stars rating={product.rating} />
-          <span className="text-xs text-zinc-400">({product.reviews})</span>
-        </div>
+        {/* Sur un produit pas encore sorti, la date de disponibilité prime sur
+            la note : le compte à rebours prend la place des étoiles. */}
+        {isPreorder && product.releaseDate ? (
+          <div className="flex items-center">
+            <Countdown releaseDate={product.releaseDate} size="inline" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Stars rating={product.rating} />
+            <span className="text-xs text-zinc-400">({product.reviews})</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           {product.compareAtPrice && product.compareAtPrice > product.price && (

@@ -136,12 +136,13 @@ export default function ProductDetail() {
         </div>
         <button
           onClick={() => {
-            // Scroll to add to cart button
+            // Relaie le clic sur le bouton principal : une seule logique d'achat,
+            // qu'il s'agisse d'un ajout au panier ou d'une précommande.
             document.querySelector<HTMLButtonElement>('[data-pdp-atc]')?.click()
           }}
           className="flex-shrink-0 px-5 py-2.5 text-xs font-bold uppercase tracking-wider bg-black text-white hover:bg-zinc-800 transition-colors"
         >
-          Ajouter au panier
+          {product.isPreorder ? 'Précommander' : 'Ajouter au panier'}
         </button>
       </div>
     </>
