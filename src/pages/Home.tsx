@@ -91,7 +91,7 @@ export default function Home() {
         )}
 
         {/* Best sellers */}
-        <SectionTitle eyebrow="Les plus portés" subtitle="Nos favoris, adoptés au quotidien." />
+        <SectionTitle eyebrow="La sélection du moment" subtitle="Les pièces que nous mettons en avant cette saison." />
         <FeaturedProducts products={bestsellers} />
 
         {/* Collaboration banner */}

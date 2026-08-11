@@ -15,6 +15,7 @@ import Checkout from './pages/Checkout'
 import OrderConfirmation from './pages/OrderConfirmation'
 import CartDrawer from './components/cart/CartDrawer'
 import QuickBuyDrawer from './components/cart/QuickBuyDrawer'
+import PreorderFormModal from './components/preorder/PreorderFormModal'
 
 // Auth & Admin
 import { EdgeStoreProvider } from './lib/edgestore'
@@ -36,6 +37,7 @@ const AdminFaq = lazy(() => import('./pages/admin/content/Faq'))
 const AdminSalonServices = lazy(() => import('./pages/admin/content/SalonServices'))
 const AdminSalonGallery = lazy(() => import('./pages/admin/content/SalonGallery'))
 const AdminQuotes = lazy(() => import('./pages/admin/Quotes'))
+const AdminPreorders = lazy(() => import('./pages/admin/Preorders'))
 const AdminReviews = lazy(() => import('./pages/admin/Reviews'))
 const AdminSettings = lazy(() => import('./pages/admin/Settings'))
 const AdminUsers = lazy(() => import('./pages/admin/Users'))
@@ -92,6 +94,7 @@ export default function App() {
           <Route path="salon/services" element={<AdminSalonServices />} />
           <Route path="salon/gallery" element={<AdminSalonGallery />} />
           <Route path="quotes" element={<AdminQuotes />} />
+          <Route path="preorders" element={<AdminPreorders />} />
           <Route path="reviews" element={<AdminReviews />} />
           <Route path="settings" element={<AdminSettings />} />
           {/* Gestion des comptes : ADMIN uniquement. */}
@@ -105,6 +108,7 @@ export default function App() {
       {/* Drawers boutique (hors admin) */}
       <CartDrawer />
       <QuickBuyDrawer />
+      <PreorderFormModal />
     </SettingsProvider>
     </AuthProvider>
     </EdgeStoreProvider>

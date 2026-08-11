@@ -5,13 +5,16 @@ import './index.css'
 import App from './App.tsx'
 import { CartProvider } from './context/CartContext.tsx'
 import { QuickBuyProvider } from './context/QuickBuyContext.tsx'
+import { PreorderProvider } from './context/PreorderContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <CartProvider>
         <QuickBuyProvider>
-          <App />
+          <PreorderProvider>
+            <App />
+          </PreorderProvider>
         </QuickBuyProvider>
       </CartProvider>
     </BrowserRouter>

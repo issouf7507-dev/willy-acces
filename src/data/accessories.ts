@@ -9,6 +9,12 @@ export interface AccessoryProduct {
   name: string
   price: number
   compareAtPrice?: number
+  /** Identifiant produit côté API (cuid), nécessaire pour précommander. */
+  productId?: string
+  /** Produit en précommande *en ce moment* (calculé par l'API). */
+  isPreorder?: boolean
+  /** Date de sortie ISO, pour le compte à rebours des cartes en précommande. */
+  releaseDate?: string
   rating: number
   reviews: number
   category: string

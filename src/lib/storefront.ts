@@ -48,6 +48,10 @@ export interface ApiProduct {
   isFeatured: boolean
   isNew: boolean
   isPreorder: boolean
+  /** Calculé par l'API : le produit est en précommande *en ce moment*, c'est-à-dire
+   *  coché « Précommande » et pas encore sorti. */
+  isPreorderActive?: boolean
+  preorderStartsAt: string | null
   releaseDate: string | null
   currency: string
   tags: string | null
@@ -77,15 +81,25 @@ function hashId(s: string): number {
 const num = (v: string | number | null | undefined): number | undefined =>
   v === null || v === undefined ? undefined : Number(v)
 
+/**
+ * Un produit dont la date de sortie est passée n'est plus une précommande : il
+ * rejoint le catalogue normal. C'est l'API qui tranche via `isPreorderActive` ;
+ * le repli sur le drapeau brut couvre une réponse d'API plus ancienne.
+ */
+const isPreorderNow = (p: ApiProduct): boolean => p.isPreorderActive ?? p.isPreorder
+
 // ─── Mappers API → shapes de cartes du front ─────────────────────────────────
 
 export function toBagProduct(p: ApiProduct): BagProduct {
   const m = p.metadata ?? {}
   return {
     id: m.legacyId ?? hashId(p.id),
+    productId: p.id,
     name: p.name,
     price: Number(p.price),
     compareAtPrice: num(p.compareAtPrice),
+    isPreorder: isPreorderNow(p),
+    releaseDate: p.releaseDate ?? undefined,
     // Note réelle calculée par l'API sur les avis approuvés ; metadata ne sert
     // plus que de repli pour les produits importés avec une note historique.
     rating: p.rating ?? m.rating ?? 0,
@@ -110,9 +124,12 @@ export function toAccessoryProduct(p: ApiProduct): AccessoryProduct {
   const m = p.metadata ?? {}
   return {
     id: m.legacyId ?? hashId(p.id),
+    productId: p.id,
     name: p.name,
     price: Number(p.price),
     compareAtPrice: num(p.compareAtPrice),
+    isPreorder: isPreorderNow(p),
+    releaseDate: p.releaseDate ?? undefined,
     // Note réelle calculée par l'API sur les avis approuvés ; metadata ne sert
     // plus que de repli pour les produits importés avec une note historique.
     rating: p.rating ?? m.rating ?? 0,
@@ -132,8 +149,12 @@ export function toCardProduct(p: ApiProduct): CardProduct {
   const m = p.metadata ?? {}
   return {
     id: m.legacyId ?? hashId(p.id),
+    productId: p.id,
     name: p.name,
     price: Number(p.price),
+    compareAtPrice: num(p.compareAtPrice),
+    isPreorder: isPreorderNow(p),
+    releaseDate: p.releaseDate ?? undefined,
     // Note réelle calculée par l'API sur les avis approuvés ; metadata ne sert
     // plus que de repli pour les produits importés avec une note historique.
     rating: p.rating ?? m.rating ?? 0,
@@ -148,8 +169,10 @@ export function toPreorderProduct(p: ApiProduct): PreorderProduct {
   const m = p.metadata ?? {}
   return {
     id: m.legacyId ?? hashId(p.id),
+    productId: p.id,
     name: p.name,
     price: Number(p.price),
+    compareAtPrice: num(p.compareAtPrice),
     releaseDate: p.releaseDate ?? new Date().toISOString(),
     tagline: m.tagline ?? '',
     colors: m.colors ?? [],
@@ -167,22 +190,25 @@ async function fetchAll(): Promise<ApiProduct[]> {
 }
 
 /**
- * Sacs = produits rangés sous « Sacs » (ou une de ses sous-catégories), hors
- * précommandes. Se baser sur `metadata.kind` faisait passer pour un sac tout
- * produit créé depuis l'admin, qui n'écrit pas ce champ.
+ * Sacs = produits rangés sous « Sacs » (ou une de ses sous-catégories).
+ * Se baser sur `metadata.kind` faisait passer pour un sac tout produit créé
+ * depuis l'admin, qui n'écrit pas ce champ.
+ *
+ * Les précommandes ne sont plus écartées : elles se mêlent au catalogue, où le
+ * ruban « Précommande » et le compte à rebours les distinguent.
  */
 export async function fetchBags(): Promise<BagProduct[]> {
   const [all, cats] = await Promise.all([fetchAll(), fetchCategories()])
   const covered = new Set(categorySlugsWithDescendants(cats, 'sacs'))
   return all
-    .filter(p => !p.isPreorder && p.category?.slug && covered.has(p.category.slug))
+    .filter(p => p.category?.slug && covered.has(p.category.slug))
     .map(toBagProduct)
 }
 
-/** Catalogue complet (tous produits actifs hors précommandes), pour /products. */
+/** Catalogue complet (tous produits actifs, précommandes comprises), pour /products. */
 export async function fetchCatalog(): Promise<BagProduct[]> {
   const all = await fetchAll()
-  return all.filter(p => !p.isPreorder).map(toBagProduct)
+  return all.map(toBagProduct)
 }
 
 // ─── Catégories (gérées depuis le back-office) ───────────────────────────────
@@ -283,7 +309,7 @@ export async function fetchAccessories(): Promise<AccessoryProduct[]> {
   const [all, cats] = await Promise.all([fetchAll(), fetchCategories()])
   const covered = new Set(categorySlugsWithDescendants(cats, 'accessoires'))
   return all
-    .filter(p => !p.isPreorder && p.category?.slug && covered.has(p.category.slug))
+    .filter(p => p.category?.slug && covered.has(p.category.slug))
     .map(toAccessoryProduct)
 }
 
@@ -298,7 +324,7 @@ export async function fetchBagCards(limit = 8): Promise<CardProduct[]> {
   const [all, cats] = await Promise.all([fetchAll(), fetchCategories()])
   const covered = new Set(categorySlugsWithDescendants(cats, 'sacs'))
   return all
-    .filter(p => !p.isPreorder && p.category?.slug && covered.has(p.category.slug))
+    .filter(p => p.category?.slug && covered.has(p.category.slug))
     .slice(0, limit)
     .map(toCardProduct)
 }
@@ -336,7 +362,10 @@ export function buildProductDetail(p: ApiProduct): ProductDetailData {
   const legacyId = m.legacyId ?? hashId(p.id)
   const price = Number(p.price)
   const compareAtPrice = num(p.compareAtPrice)
-  const available = p.stock > 0
+  const preorder = isPreorderNow(p)
+  // Une précommande n'a pas de stock à écouler : elle reste commandable même à
+  // zéro, puisque le produit n'est pas encore fabriqué ou reçu.
+  const available = preorder || p.stock > 0
 
   const colors = m.colors ?? []
   const variants: DetailVariant[] = colors.length > 0
@@ -388,6 +417,9 @@ export function buildProductDetail(p: ApiProduct): ProductDetailData {
     gradientFrom,
     gradientTo,
     sku: p.sku ?? '',
+    isPreorder: preorder,
+    releaseDate: p.releaseDate ?? undefined,
+    imageUrl: p.images?.[0]?.url,
     variants,
     hasColorVariants: colors.length > 0,
     features: m.features ?? [],
