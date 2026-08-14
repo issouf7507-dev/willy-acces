@@ -3,8 +3,10 @@ import { formatPrice } from '../../lib/utils'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
 import { fetchRecommendations, type RecommendationCardData } from '../../lib/storefront'
+import { useSettings } from '../../context/SettingsContext'
 
-const FREE_SHIPPING_THRESHOLD = 110
+/** Repli si le seuil n'est pas encore réglé en back-office (`freeShippingThreshold`). */
+const DEFAULT_FREE_SHIPPING_THRESHOLD = 500000
 
 function TruckIcon() {
   return (
@@ -21,9 +23,13 @@ function TruckIcon() {
 }
 
 function FreeShippingBar({ total }: { total: number }) {
-  const remaining = FREE_SHIPPING_THRESHOLD - total
-  const progress = Math.min(total / FREE_SHIPPING_THRESHOLD, 1)
-  const reached = total >= FREE_SHIPPING_THRESHOLD
+  // Seuil réglé dans /admin/settings : le 110 codé en dur venait du gabarit et
+  // déclarait la livraison offerte dès 110 FCFA.
+  const { settings } = useSettings()
+  const threshold = settings.freeShippingThreshold ?? DEFAULT_FREE_SHIPPING_THRESHOLD
+  const remaining = threshold - total
+  const progress = Math.min(total / threshold, 1)
+  const reached = total >= threshold
 
   return (
     <div className="mt-3">
@@ -63,7 +69,7 @@ function RecommendationCard({ product }: { product: RecommendationCardData }) {
       </div>
       {/* Info */}
       <div className="p-2 flex flex-col gap-1.5 flex-1">
-        <p className="text-xs font-medium leading-tight text-zinc-900 line-clamp-2">{product.name}</p>
+        <p className="text-xs font-medium uppercase leading-tight text-zinc-900 line-clamp-2">{product.name}</p>
         <div className="flex items-center gap-1.5">
           {product.compareAtPrice && (
             <span className="text-xs text-zinc-400 line-through">{formatPrice(product.compareAtPrice)}</span>
@@ -182,7 +188,7 @@ export default function CartDrawer() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm leading-snug">{item.name}</p>
+                      <p className="font-bold uppercase text-sm leading-snug">{item.name}</p>
                       <p className="text-sm text-zinc-500 mt-0.5">{formatPrice(item.price)}</p>
                       {item.color && (
                         <p className="text-xs text-zinc-400 mt-0.5">{item.color}</p>

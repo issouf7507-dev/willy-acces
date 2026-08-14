@@ -9,8 +9,8 @@ sont des produits de marque (Gucci, Ferragamo…), inutilisables sur la vitrine 
 
 | Fichier | Source | Usage |
 |---|---|---|
-| `banner-collection.webp` | https://unsplash.com/photos/7zrTn9wuUDU (`photo-1568941136405-b1d44d9aefb9`) | Bannière « Portez avec fierté » (Home) |
-| `banner-accessories.webp` | https://unsplash.com/photos/photo-1613800812017-f4cb202ec15e | Bannière « À votre façon » (Home) |
+| `banner-collection.webp` | https://unsplash.com/photos/7zrTn9wuUDU (`photo-1568941136405-b1d44d9aefb9`) | Plus utilisé — la bannière « Portez avec fierté » sert désormais une photo EdgeStore |
+| `banner-accessories.webp` | https://unsplash.com/photos/photo-1613800812017-f4cb202ec15e | Plus utilisé — la bannière « À votre façon » sert désormais une photo EdgeStore |
 | `hero.png` | — (présent avant) | non utilisé |
 
 À remplacer par de vraies photos produit dès qu'elles sont disponibles.

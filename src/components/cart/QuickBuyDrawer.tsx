@@ -109,7 +109,7 @@ export default function QuickBuyDrawer() {
 
                 {/* Name + price */}
                 <div className="min-w-0">
-                  <p className="font-bold text-sm leading-snug truncate">{product.name}</p>
+                  <p className="font-bold uppercase text-sm leading-snug truncate">{product.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {product.compareAtPrice && product.compareAtPrice > product.price && (
                       <span className="text-xs text-zinc-400 line-through">{formatPrice(product.compareAtPrice)}</span>

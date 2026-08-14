@@ -6,6 +6,9 @@ import { X, Loader2, Upload, Trash2, ImagePlus } from 'lucide-react'
 interface Category { id: string; name: string; parentId?: string | null; sortOrder?: number }
 interface Product {
   id: string; name: string; slug?: string; price: number | string
+  /** Prix normal brut. `price` porte le tarif du moment (promo/précommande) : le
+   *  formulaire doit repartir d'ici, sinon il réécrit le prix normal avec lui. */
+  basePrice?: number | string | null
   promoPrice?: number | string | null
   promoStartsAt?: string | null; promoEndsAt?: string | null
   stock: number; sku: string | null
@@ -14,6 +17,8 @@ interface Product {
   preorderStartsAt?: string | null; releaseDate?: string | null
   preorderPrice?: number | string | null
   categoryId?: string | null; images: { url: string; alt?: string | null }[]
+  /** Lien vers une vidéo TikTok du produit (facultatif). */
+  tiktokUrl?: string | null
 }
 
 interface Props {
@@ -122,7 +127,10 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
   const [form, setForm] = useState({
     name: product?.name ?? '',
     description: product?.description ?? '',
-    price: String(product?.price ?? ''),
+    // `basePrice` d'abord : `price` vaut le tarif applicable aujourd'hui, donc le
+    // prix promo ou de précommande dès qu'une fenêtre est ouverte. Le reprendre
+    // ici écrasait le prix normal en base au premier enregistrement.
+    price: String(product?.basePrice ?? product?.price ?? ''),
     promoPrice: String(product?.promoPrice ?? ''),
     promoStartsAt: toDateInput(product?.promoStartsAt),
     promoEndsAt: toDateInput(product?.promoEndsAt),
@@ -136,6 +144,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     preorderStartsAt: toDateInput(product?.preorderStartsAt),
     releaseDate: toDateInput(product?.releaseDate),
     preorderPrice: String(product?.preorderPrice ?? ''),
+    tiktokUrl: product?.tiktokUrl ?? '',
   })
 
   useEffect(() => {
@@ -247,6 +256,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         // s'applique déjà pendant la période.
         preorderPrice:
           form.isPreorder && Number(form.preorderPrice) > 0 ? Number(form.preorderPrice) : null,
+        // Champ vidé = on efface le lien (`null`), pas « ne pas y toucher ».
+        tiktokUrl: form.tiktokUrl.trim() || null,
         images: images
           .filter((img) => !img.uploading && !img.error && img.url.startsWith('https://'))
           .map((img, sortOrder) => ({ url: img.url, alt: img.alt || undefined, sortOrder })),
@@ -314,6 +325,15 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
           <Field label="Description">
             <textarea rows={3} value={form.description} onChange={(e) => set('description', e.target.value)}
               className={`${input} resize-none`} placeholder="Description…" />
+          </Field>
+
+          <Field label="Lien TikTok">
+            <input type="url" value={form.tiktokUrl} onChange={(e) => set('tiktokUrl', e.target.value)}
+              className={input} placeholder="https://www.tiktok.com/@willy/video/…" />
+            <p className="text-xs text-gray-400 mt-1.5">
+              Facultatif. S'il y a une vidéo du produit, collez son lien : un bouton « Voir la
+              vidéo » apparaît sur la fiche produit.
+            </p>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">

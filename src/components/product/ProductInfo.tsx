@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { formatPrice } from '../../lib/utils'
+import PreorderPrice from '../preorder/PreorderPrice'
+import Countdown from '../preorder/Countdown'
 import { Link } from 'react-router-dom'
 import type { ProductDetailData } from '../../data/productDetail'
 import { useCart } from '../../context/CartContext'
 import { usePreorder } from '../../context/PreorderContext'
 import ProductReviews from './ProductReviews'
+import TikTokEmbed from './TikTokEmbed'
+
+const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
 
 /**
  * Note du produit. Sans avis approuvé, cinq étoiles grises laissaient croire à
@@ -101,7 +110,7 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
           {product.collectionName}
         </Link>
         <span>/</span>
-        <span className="text-black truncate">{product.name}</span>
+        <span className="text-black uppercase truncate">{product.name}</span>
       </nav>
 
       {/* Title + Stars + Price — desktop */}
@@ -110,12 +119,18 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
           <h1 className="text-lg font-bold uppercase leading-tight flex-1">{product.name}</h1>
           <Stars rating={product.rating} count={product.reviews} />
         </div>
-        <div className="flex items-baseline gap-3">
-          <span className="text-3xl font-bold tracking-tight">{formatPrice(variant.price)}</span>
-          {variant.compareAtPrice && variant.compareAtPrice > variant.price && (
-            <span className="text-base text-zinc-400 line-through">{formatPrice(variant.compareAtPrice)}</span>
-          )}
-        </div>
+        {/* Sur une précommande, les deux tarifs sont étiquetés : ce qu'on paie
+            maintenant, et le prix normal qui reprend la main à la sortie. */}
+        {product.isPreorder ? (
+          <PreorderPrice price={variant.price} basePrice={product.basePrice} size="lg" />
+        ) : (
+          <div className="flex items-baseline gap-3">
+            <span className="text-3xl font-bold tracking-tight">{formatPrice(variant.price)}</span>
+            {variant.compareAtPrice && variant.compareAtPrice > variant.price && (
+              <span className="text-base text-zinc-400 line-through">{formatPrice(variant.compareAtPrice)}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Color picker — seulement si le produit déclare de vrais coloris.
@@ -223,9 +238,48 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
         </div>
       )}
 
+      {/* Vidéo TikTok du produit, quand un lien est renseigné en back-office.
+          La vidéo se joue sur place quand l'URL porte son identifiant ; le lien
+          sortant reste affiché dessous (et sert seul pour les liens courts,
+          vm.tiktok.com, qui ne permettent pas de reconstruire le lecteur). */}
+      {product.tiktokUrl && (
+        <div className="mb-4">
+          <TikTokEmbed url={product.tiktokUrl} />
+          <a
+            href={product.tiktokUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 border-2 border-black text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 0 1-2.59 2.5 2.59 2.59 0 0 1 0-5.18c.27 0 .53.04.78.12v-3.2a5.8 5.8 0 0 0-.78-.05 5.75 5.75 0 1 0 5.75 5.75V9.01a7.36 7.36 0 0 0 4.3 1.38V7.3a4.29 4.29 0 0 1-3.31-1.48z" />
+            </svg>
+            Voir sur TikTok
+          </a>
+        </div>
+      )}
+
       {/* Référence : le SKU réel du produit, généré ou saisi au back-office */}
       {product.sku && (
         <p className="text-xs text-zinc-400 mb-2">Référence : {product.sku}</p>
+      )}
+
+      {/* Précommande : le décompte est posé juste au-dessus du bouton, là où se
+          prend la décision, et non en marge de la note comme sur les cartes du
+          catalogue — la fiche a la place de l'afficher en clair. */}
+      {product.isPreorder && product.releaseDate && (
+        <div className="mt-5 border border-zinc-200 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-3">
+            <span className="text-xs font-bold uppercase tracking-widest">Précommande</span>
+            <span className="text-xs text-zinc-500">
+              Sortie le {DATE_FMT.format(new Date(product.releaseDate))}
+            </span>
+          </div>
+          <Countdown releaseDate={product.releaseDate} size="sm" />
+          <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
+            Réservation sans paiement : le produit est expédié à sa sortie.
+          </p>
+        </div>
       )}
 
       {/* Ajout au panier — placé après la description et la référence */}

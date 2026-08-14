@@ -56,7 +56,7 @@ export default function PreorderCard({ product }: { product: PreorderProduct }) 
             cliquables, comme sur les cartes du catalogue. */}
         <Link
           to={`/products/${nameToHandle(product.name)}`}
-          className="font-bold text-sm leading-snug line-clamp-1 group-hover:underline after:absolute after:inset-0 after:z-10 after:content-['']"
+          className="font-bold uppercase text-sm leading-snug line-clamp-1 group-hover:underline after:absolute after:inset-0 after:z-10 after:content-['']"
         >
           {product.name}
         </Link>
@@ -67,7 +67,7 @@ export default function PreorderCard({ product }: { product: PreorderProduct }) 
               de précommande à annoncer. */}
           <PreorderPrice
             price={product.price}
-            compareAtPrice={released ? undefined : product.compareAtPrice}
+            basePrice={released ? undefined : product.basePrice}
           />
         </div>
 

@@ -1,19 +1,22 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useCart } from '../context/CartContext'
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useCart } from "../context/CartContext";
+import Logo from "./Logo";
+import SearchOverlay from "./SearchOverlay";
+import AccountMenu from "./AccountMenu";
 
 const navLinks = [
-  { label: 'Accueil', href: '/' },
-  { label: 'Produits', href: '/products' },
-  { label: 'Nouveautés', href: '/collections/new-arrivals' },
-  { label: 'Précommandes', href: '/collections/produits-a-venir' },
-  { label: 'Accessoires', href: '/accessories' },
-  { label: 'Salon de beauté', href: '/salon-de-beaute' },
-]
+  { label: "Accueil", href: "/" },
+  { label: "Produits", href: "/products" },
+  { label: "Nouveautés", href: "/collections/new-arrivals" },
+  { label: "Précommandes", href: "/collections/produits-a-venir" },
+  { label: "Salon de beauté", href: "/salon-de-beaute" },
+];
 
 export default function Header() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const { openCart, itemCount } = useCart()
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const { openCart, itemCount } = useCart();
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-zinc-200 shadow-sm">
@@ -25,22 +28,39 @@ export default function Header() {
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Menu"
           >
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              {menuOpen
-                ? <><path d="M3 3l16 16M3 19L19 3" /></>
-                : <><path d="M1 5h20M1 11h20M1 17h20" /></>
-              }
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 22 22"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              {menuOpen ? (
+                <>
+                  <path d="M3 3l16 16M3 19L19 3" />
+                </>
+              ) : (
+                <>
+                  <path d="M1 5h20M1 11h20M1 17h20" />
+                </>
+              )}
             </svg>
           </button>
 
           {/* Logo */}
-          <Link to="/" className="flex-1 lg:flex-none flex justify-center lg:justify-start">
-            <span className="font-black text-2xl tracking-tight select-none">WILLY</span>
+          <Link
+            to="/"
+            className="flex-1 lg:flex-none flex items-center justify-center lg:justify-start gap-2.5"
+            aria-label="Willy Accessoires — accueil"
+          >
+            <Logo className="h-11 md:h-14" />
           </Link>
 
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-8">
-            {navLinks.map(link => (
+            {navLinks.map((link) => (
               <Link
                 key={link.label}
                 to={link.href}
@@ -53,18 +73,30 @@ export default function Header() {
 
           {/* Icons */}
           <div className="flex items-center gap-1">
-            <button className="hidden md:flex p-2 hover:opacity-60 transition-opacity" aria-label="Rechercher">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2">
+            {/* Recherche : visible aussi sur mobile, c'est le chemin le plus
+                court vers un produit quand la nav est repliée. */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex p-2 hover:opacity-60 transition-opacity"
+              aria-label="Rechercher"
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 22 22"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <circle cx="11" cy="10" r="7" />
-                <path d="m16 15 3 3" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="m16 15 3 3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
-            <button className="hidden md:flex p-2 hover:opacity-60 transition-opacity" aria-label="Compte">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="7" r="4" />
-                <path d="M3.5 19c1.421-2.974 4.247-5 7.5-5s6.079 2.026 7.5 5" strokeLinecap="round" />
-              </svg>
-            </button>
+            <AccountMenu />
 
             {/* Cart button — branché au context */}
             <button
@@ -72,7 +104,16 @@ export default function Header() {
               className="relative p-2 hover:opacity-60 transition-opacity"
               aria-label="Ouvrir le panier"
             >
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 22 22"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M11 7H3.577A2 2 0 0 0 1.64 9.497l2.051 8A2 2 0 0 0 5.63 19H16.37a2 2 0 0 0 1.937-1.503l2.052-8A2 2 0 0 0 18.422 7H11Zm0 0V1" />
               </svg>
               {itemCount > 0 && (
@@ -89,7 +130,7 @@ export default function Header() {
       {menuOpen && (
         <div className="lg:hidden border-t border-zinc-200 bg-white">
           <nav className="px-5 py-4 flex flex-col gap-1">
-            {navLinks.map(link => (
+            {navLinks.map((link) => (
               <Link
                 key={link.label}
                 to={link.href}
@@ -99,9 +140,27 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
+            {/* Le menu compte est réservé au desktop : sur mobile ses entrées
+                vivent ici, où il y a la place de les nommer. */}
+            <Link
+              to="/faq"
+              onClick={() => setMenuOpen(false)}
+              className="text-sm font-bold uppercase tracking-widest py-3 text-zinc-500 hover:text-black transition-colors"
+            >
+              Aide &amp; FAQ
+            </Link>
+            <Link
+              to="/inscription"
+              onClick={() => setMenuOpen(false)}
+              className="text-sm font-bold uppercase tracking-widest pb-3 text-zinc-500 hover:text-black transition-colors"
+            >
+              S'inscrire
+            </Link>
           </nav>
         </div>
       )}
+
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
-  )
+  );
 }

@@ -9,6 +9,7 @@ import Preorders from './pages/Preorders'
 import Accessories from './pages/Accessories'
 import SalonDeBeaute from './pages/SalonDeBeaute'
 import Faq from './pages/Faq'
+import Inscription from './pages/Inscription'
 import Products from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
 import Checkout from './pages/Checkout'
@@ -38,6 +39,7 @@ const AdminSalonServices = lazy(() => import('./pages/admin/content/SalonService
 const AdminSalonGallery = lazy(() => import('./pages/admin/content/SalonGallery'))
 const AdminQuotes = lazy(() => import('./pages/admin/Quotes'))
 const AdminPreorders = lazy(() => import('./pages/admin/Preorders'))
+const AdminSubscribers = lazy(() => import('./pages/admin/Subscribers'))
 const AdminReviews = lazy(() => import('./pages/admin/Reviews'))
 const AdminSettings = lazy(() => import('./pages/admin/Settings'))
 const AdminUsers = lazy(() => import('./pages/admin/Users'))
@@ -64,6 +66,7 @@ export default function App() {
         <Route path="/accessories" element={<Accessories />} />
         <Route path="/salon-de-beaute" element={<SalonDeBeaute />} />
         <Route path="/faq" element={<Faq />} />
+        <Route path="/inscription" element={<Inscription />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:handle" element={<ProductDetail />} />
         <Route path="/checkout" element={<Checkout />} />
@@ -95,6 +98,7 @@ export default function App() {
           <Route path="salon/gallery" element={<AdminSalonGallery />} />
           <Route path="quotes" element={<AdminQuotes />} />
           <Route path="preorders" element={<AdminPreorders />} />
+          <Route path="subscribers" element={<AdminSubscribers />} />
           <Route path="reviews" element={<AdminReviews />} />
           <Route path="settings" element={<AdminSettings />} />
           {/* Gestion des comptes : ADMIN uniquement. */}

@@ -46,6 +46,8 @@ export interface ProductDetailData {
   sku: string
   /** Produit en précommande *en ce moment* (calculé par l'API). */
   isPreorder: boolean
+  /** Prix normal, celui qui reprend la main à la sortie d'une précommande. */
+  basePrice?: number
   /** Date de sortie ISO, présente sur une précommande. */
   releaseDate?: string
   /** Image principale, pour le récapitulatif du formulaire de précommande. */
@@ -60,6 +62,8 @@ export interface ProductDetailData {
   collectionHandle: string
   collectionName: string
   galleryImages: GalleryImage[]
+  /** Lien vers une vidéo TikTok du produit, saisi en back-office (facultatif). */
+  tiktokUrl?: string
 }
 
 export function nameToHandle(name: string): string {

@@ -31,7 +31,9 @@ export default function Products() {
   // `|| 'all'` et pas `??` : un `?category=` vide doit retomber sur "Tous".
   const activeCategory = searchParams.get('category') || 'all'
   const [sortBy, setSortBy] = useState('featured')
-  const [search, setSearch] = useState('')
+  // La recherche vit dans l'URL (`?q=`), comme la catégorie : la recherche du
+  // header peut donc renvoyer ici, et le lien reste partageable.
+  const search = searchParams.get('q') || ''
   const [page, setPage] = useState(1)
 
   useEffect(() => {
@@ -83,8 +85,21 @@ export default function Products() {
   const displayed = filtered.slice(0, page * PAGE_SIZE)
   const hasMore = displayed.length < filtered.length
 
+  const handleSearchChange = (value: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (value) next.set('q', value)
+    else next.delete('q')
+    setSearchParams(next, { replace: true })
+    setPage(1)
+  }
+
   const handleCategoryChange = (id: string) => {
-    setSearchParams(id === 'all' ? {} : { category: id }, { replace: true })
+    // On conserve `q` : changer d'onglet doit filtrer la recherche en cours,
+    // pas l'effacer.
+    const next = new URLSearchParams(searchParams)
+    if (id === 'all') next.delete('category')
+    else next.set('category', id)
+    setSearchParams(next, { replace: true })
     setPage(1)
   }
 
@@ -124,12 +139,12 @@ export default function Products() {
               type="text"
               placeholder="Rechercher un produit…"
               value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1) }}
+              onChange={e => handleSearchChange(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 text-sm border border-zinc-200 focus:border-black focus:outline-none bg-zinc-50 focus:bg-white transition-colors"
             />
             {search && (
               <button
-                onClick={() => { setSearch(''); setPage(1) }}
+                onClick={() => handleSearchChange('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black"
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M1 11L11 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
@@ -185,7 +200,7 @@ export default function Products() {
             </div>
             <p className="text-zinc-400 font-medium mb-2">Aucun produit trouvé</p>
             <button
-              onClick={() => { setSearch(''); handleCategoryChange('all') }}
+              onClick={() => { setSearchParams({}, { replace: true }); setPage(1) }}
               className="text-xs font-bold uppercase tracking-wide underline text-zinc-500 hover:text-black transition-colors"
             >
               Réinitialiser

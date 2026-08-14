@@ -6,11 +6,15 @@ import { usePreorder } from '../context/PreorderContext'
 import { nameToHandle } from '../data/productDetail'
 import ProductRibbon from './ProductRibbon'
 import Countdown from './preorder/Countdown'
+import PreorderPrice from './preorder/PreorderPrice'
 
 export interface Product {
   id: number
   name: string
   price: number
+  /** Prix normal, celui qui reprend la main à la sortie d'une précommande.
+   *  Toujours renseigné par l'API, contrairement à `compareAtPrice`. */
+  basePrice?: number
   /** Prix normal barré, renseigné par l'API tant qu'un tarif daté s'applique. */
   compareAtPrice?: number
   /** Identifiant produit côté API (cuid), nécessaire pour précommander. */
@@ -142,7 +146,7 @@ export default function ProductCard({ product }: { product: Product }) {
         {/* Le lien s'étend sur toute la carte (pseudo-élément) : image + infos cliquables */}
         <Link
           to={`/products/${nameToHandle(product.name)}`}
-          className="font-bold text-sm leading-snug group-hover:underline after:absolute after:inset-0 after:z-10 after:content-['']"
+          className="font-bold uppercase text-sm leading-snug group-hover:underline after:absolute after:inset-0 after:z-10 after:content-['']"
         >
           {product.name}
         </Link>
@@ -160,17 +164,22 @@ export default function ProductCard({ product }: { product: Product }) {
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          {onPromo && (
-            <span className="text-xs text-zinc-400 line-through">{formatPrice(product.compareAtPrice!)}</span>
-          )}
-          {/* Le rouge signale une promotion. Un tarif de précommande est barré
-              de la même façon, mais garde la couleur normale : c'est le ruban
-              « Précommande » qui porte le message. */}
-          <span className={`text-sm font-semibold ${onPromo && !isPreorder ? 'text-red-600' : ''}`}>
-            {formatPrice(product.price)}
-          </span>
-        </div>
+        {/* Une précommande annonce ses deux tarifs étiquetés (ce qu'on paie
+            maintenant / ce que ça coûtera à la sortie). Un prix barré donnerait
+            à tort le prix normal pour une ancienne offre annulée. */}
+        {isPreorder ? (
+          <PreorderPrice price={product.price} basePrice={product.basePrice} />
+        ) : (
+          <div className="flex items-center gap-2">
+            {onPromo && (
+              <span className="text-xs text-zinc-400 line-through">{formatPrice(product.compareAtPrice!)}</span>
+            )}
+            {/* Le rouge signale une promotion. */}
+            <span className={`text-sm font-semibold ${onPromo ? 'text-red-600' : ''}`}>
+              {formatPrice(product.price)}
+            </span>
+          </div>
+        )}
 
         {/* Color swatches */}
         {product.colors.length > 1 && (

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import Logo from "../../components/Logo";
 
 const testimonials = [
   {
@@ -67,10 +68,8 @@ export default function Login() {
         {/* Contenu sur l'image */}
         <div className="relative z-10 flex flex-col h-full p-10">
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-gray-900 font-bold text-sm">W</span>
-            </div>
+          <div className="flex items-center gap-3">
+            <Logo className="h-12" onDark />
             <span className="text-white font-semibold text-lg">
               Willy Accessoire
             </span>
@@ -121,10 +120,8 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
         <div className="w-full max-w-sm">
           {/* En-tête mobile */}
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-7 h-7 bg-gray-900 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xs">W</span>
-            </div>
+          <div className="lg:hidden flex items-center gap-2.5 mb-8">
+            <Logo className="h-11" />
             <span className="font-semibold text-gray-900">
               Willy Accessoire
             </span>
