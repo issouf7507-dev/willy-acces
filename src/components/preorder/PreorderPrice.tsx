@@ -6,18 +6,23 @@ import { formatPrice } from '../../lib/utils'
  * ce que le produit coûtera une fois sorti. Sans tarif dédié, il n'y a qu'un
  * prix — afficher deux fois le même n'apprendrait rien.
  *
- * `compareAtPrice` porte le prix normal, celui qui reprend la main à la sortie.
+ * `basePrice` porte le prix normal, celui qui reprend la main à la sortie. Il est
+ * annoncé qu'il soit au-dessus ou en dessous du tarif de précommande : dans les
+ * deux cas le client a besoin de savoir ce que le produit coûtera après la date
+ * de sortie. C'est bien le prix normal brut qu'il faut passer ici (`basePrice`
+ * de l'API), et non `compareAtPrice`, que l'API laisse vide dès que la
+ * précommande n'est pas une remise.
  */
 export default function PreorderPrice({
   price,
-  compareAtPrice,
+  basePrice,
   size = 'sm',
 }: {
   price: number
-  compareAtPrice?: number
+  basePrice?: number
   size?: 'sm' | 'lg'
 }) {
-  const hasDeal = !!compareAtPrice && compareAtPrice > price
+  const hasDeal = !!basePrice && basePrice !== price
   const amount = size === 'lg' ? 'text-lg' : 'text-sm'
 
   if (!hasDeal) {
@@ -38,7 +43,7 @@ export default function PreorderPrice({
         </span>
         {/* Pas de texte barré ici : ce montant n'est pas un ancien prix annulé,
             c'est celui qui s'appliquera après la date de sortie. */}
-        <span className="text-sm text-zinc-500">{formatPrice(compareAtPrice!)}</span>
+        <span className="text-sm text-zinc-500">{formatPrice(basePrice!)}</span>
       </div>
     </div>
   )

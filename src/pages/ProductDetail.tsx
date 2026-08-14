@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { formatPrice } from '../lib/utils'
+import PreorderPrice from '../components/preorder/PreorderPrice'
 import { useParams, Link } from 'react-router-dom'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
@@ -90,7 +91,7 @@ export default function ProductDetail() {
             {product.collectionName}
           </Link>
           <span>/</span>
-          <span className="text-black truncate max-w-[160px]">{product.name}</span>
+          <span className="text-black uppercase truncate max-w-[160px]">{product.name}</span>
         </nav>
       </div>
 
@@ -103,12 +104,18 @@ export default function ProductDetail() {
             <h1 className="text-base font-bold uppercase mb-1">{product.name}</h1>
             <div className="flex items-center justify-between">
               <Stars rating={product.rating} count={product.reviews} />
-              <div className="flex items-baseline gap-2">
-                {selectedVariant.compareAtPrice && selectedVariant.compareAtPrice > selectedVariant.price && (
-                  <span className="text-xs text-zinc-400 line-through">{formatPrice(selectedVariant.compareAtPrice)}</span>
-                )}
-                <span className="text-xl font-bold tracking-tight">{formatPrice(selectedVariant.price)}</span>
-              </div>
+              {/* Sur une précommande, les deux tarifs sont étiquetés : ce qu'on
+                  paie maintenant, et le prix normal d'après la sortie. */}
+              {product.isPreorder ? (
+                <PreorderPrice price={selectedVariant.price} basePrice={product.basePrice} />
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  {selectedVariant.compareAtPrice && selectedVariant.compareAtPrice > selectedVariant.price && (
+                    <span className="text-xs text-zinc-400 line-through">{formatPrice(selectedVariant.compareAtPrice)}</span>
+                  )}
+                  <span className="text-xl font-bold tracking-tight">{formatPrice(selectedVariant.price)}</span>
+                </div>
+              )}
             </div>
           </div>
 

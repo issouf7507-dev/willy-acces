@@ -18,6 +18,8 @@ interface Product {
   sku: string | null
   images: ProductImage[]
   category: { name: string } | null
+  /** Lien TikTok du produit, édité dans la modale. */
+  tiktokUrl?: string | null
 }
 
 const FILTERS = [

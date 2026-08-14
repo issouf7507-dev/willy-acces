@@ -52,7 +52,8 @@ export default function OrderConfirmation() {
             {order.items.map((it, i) => (
               <div key={i} className="flex items-center justify-between px-4 py-3">
                 <span className="text-sm">
-                  <span className="font-semibold">{it.quantity}×</span> {it.name}
+                  <span className="font-semibold">{it.quantity}×</span>{' '}
+                  <span className="uppercase">{it.name}</span>
                 </span>
                 <span className="text-sm font-semibold whitespace-nowrap">{money(toNum(it.total))}</span>
               </div>

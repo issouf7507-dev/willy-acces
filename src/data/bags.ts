@@ -8,6 +8,9 @@ export interface BagProduct {
   id: number
   name: string
   price: number
+  /** Prix normal, celui qui reprend la main à la sortie d'une précommande.
+   *  Toujours renseigné par l'API, contrairement à `compareAtPrice`. */
+  basePrice?: number
   compareAtPrice?: number
   /** Identifiant produit côté API (cuid), nécessaire pour précommander. */
   productId?: string

@@ -5,6 +5,7 @@ import { useQuickBuy } from '../../context/QuickBuyContext'
 import { usePreorder } from '../../context/PreorderContext'
 import ProductRibbon from '../ProductRibbon'
 import Countdown from '../preorder/Countdown'
+import PreorderPrice from '../preorder/PreorderPrice'
 
 function Stars({ rating }: { rating: number }) {
   const filled = Math.round(rating)
@@ -104,7 +105,7 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
 
       {/* Info */}
       <div className="mt-3 space-y-1 flex flex-col flex-1">
-        <h3 className="font-bold text-sm leading-snug line-clamp-1">{product.name}</h3>
+        <h3 className="font-bold uppercase text-sm leading-snug line-clamp-1">{product.name}</h3>
 
         {/* Sur un produit pas encore sorti, la date de disponibilité prime sur
             la note : le compte à rebours prend la place des étoiles. */}
@@ -119,12 +120,19 @@ export default function AccessoryCard({ product }: { product: AccessoryProduct }
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          {product.compareAtPrice && product.compareAtPrice > product.price && (
-            <span className="text-xs text-zinc-400 line-through">{formatPrice(product.compareAtPrice)}</span>
-          )}
-          <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
-        </div>
+        {/* Une précommande annonce ses deux tarifs étiquetés (ce qu'on paie
+            maintenant / ce que ça coûtera à la sortie). Un prix barré donnerait
+            à tort le prix normal pour une ancienne offre annulée. */}
+        {isPreorder ? (
+          <PreorderPrice price={product.price} basePrice={product.basePrice} />
+        ) : (
+          <div className="flex items-center gap-2">
+            {product.compareAtPrice && product.compareAtPrice > product.price && (
+              <span className="text-xs text-zinc-400 line-through">{formatPrice(product.compareAtPrice)}</span>
+            )}
+            <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
+          </div>
+        )}
 
         {/* Swatches */}
         {product.colors.length > 1 && (

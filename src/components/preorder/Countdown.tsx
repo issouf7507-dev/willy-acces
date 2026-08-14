@@ -59,17 +59,25 @@ export default function Countdown({ releaseDate, size = 'sm' }: Props) {
     // Au-delà d'un jour, les secondes n'apportent rien et font clignoter la
     // carte à chaque tick : on n'affiche le détail fin qu'au dernier jour.
     const label = timeLeft.days > 0
-      ? `J-${timeLeft.days} · ${pad(timeLeft.hours)}h`
+      ? `${timeLeft.days} j ${pad(timeLeft.hours)} h`
       : `${pad(timeLeft.hours)}h ${pad(timeLeft.minutes)}m ${pad(timeLeft.seconds)}s`
 
+    // Le décompte seul (« J-13 · 06h ») passait pour une mention technique au
+    // milieu des cartes : il est explicitement introduit par « Sortie dans » et
+    // posé sur une pastille, pour se distinguer de la note en étoiles qu'il
+    // remplace.
     return (
       <span
-        className="inline-flex items-center gap-1.5 text-xs font-bold tabular-nums text-zinc-600"
+        className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] font-bold text-white"
         role="timer"
         aria-label={`Disponible dans ${timeLeft.days} jours ${timeLeft.hours} heures`}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-zinc-900" />
-        {label}
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        <span className="uppercase tracking-wide">Sortie dans</span>
+        <span className="tabular-nums">{label}</span>
       </span>
     )
   }

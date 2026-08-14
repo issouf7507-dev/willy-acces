@@ -2,10 +2,12 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import {
   LayoutDashboard, Package, ShoppingBag, Tag, Ticket,
-  Settings, LogOut, ChevronRight, Store, Image, HelpCircle,
+  Settings, LogOut, ChevronRight, Image, HelpCircle,
   Menu, X, Scissors, ImageIcon, FileText, Users as UsersIcon, MessageSquare, PackageCheck,
+  BellRing,
 } from 'lucide-react'
 import { useState } from 'react'
+import Logo from '../Logo'
 
 interface AdminUser { name: string; role: string }
 
@@ -20,9 +22,7 @@ function Sidebar({
     <aside className="flex flex-col h-full w-64 bg-gray-900 text-white">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-800">
-        <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-          <Store className="w-5 h-5 text-gray-900" />
-        </div>
+        <Logo className="h-9" onDark />
         <div>
           <p className="font-semibold text-sm leading-none">Willy Accessoire</p>
           <p className="text-xs text-gray-400 mt-0.5">Backoffice</p>
@@ -118,6 +118,7 @@ const nav: NavSection[] = [
       { to: '/admin/coupons', icon: Ticket, label: 'Coupons' },
       { to: '/admin/quotes', icon: FileText, label: 'Devis salon' },
       { to: '/admin/reviews', icon: MessageSquare, label: 'Avis produits' },
+      { to: '/admin/subscribers', icon: BellRing, label: 'Inscrits' },
     ],
   },
   {

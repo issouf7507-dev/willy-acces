@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSettings } from '../context/SettingsContext'
+import Logo from './Logo'
 
 /**
  * Colonnes du pied de page. Seules les destinations qui existent réellement sont
@@ -20,7 +20,10 @@ const links: { title: string; items: { label: string; to: string }[] }[] = [
   },
   {
     title: 'Aide',
-    items: [{ label: 'FAQ', to: '/faq' }],
+    items: [
+      { label: 'Aide & FAQ', to: '/faq' },
+      { label: "S'inscrire", to: '/inscription' },
+    ],
   },
 ]
 
@@ -33,7 +36,6 @@ function SocialIcon({ children, href }: { children: React.ReactNode; href: strin
 }
 
 export default function Footer() {
-  const [email, setEmail] = useState('')
   const { settings } = useSettings()
   const storeName = settings.storeName ?? 'Willy Accessoire'
 
@@ -43,29 +45,22 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Newsletter */}
           <div>
+            <Link to="/" className="inline-block mb-6" aria-label={`${storeName} — accueil`}>
+              <Logo className="h-24" alt={storeName} />
+            </Link>
             <h3 className="font-black text-sm uppercase tracking-widest mb-4">Restons en contact</h3>
             <p className="text-sm text-zinc-500 mb-5 leading-relaxed">
               Inscrivez-vous pour suivre nos nouveautés et actualités.
             </p>
-            <form
-              onSubmit={e => { e.preventDefault(); setEmail('') }}
-              className="flex gap-2"
+            {/* Lien vers /inscription plutôt qu'un champ e-mail : le formulaire
+                de cette colonne n'envoyait rien, et l'inscription réelle demande
+                aussi nom et téléphone. */}
+            <Link
+              to="/inscription"
+              className="inline-block bg-black text-white px-5 py-2.5 text-sm font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
             >
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="Votre e-mail"
-                className="flex-1 border border-zinc-300 px-3 py-2.5 text-sm focus:outline-none focus:border-black transition-colors"
-                required
-              />
-              <button
-                type="submit"
-                className="bg-black text-white px-4 py-2.5 text-sm font-bold hover:bg-zinc-800 transition-colors"
-              >
-                →
-              </button>
-            </form>
+              S'inscrire
+            </Link>
           </div>
 
           {/* Link columns */}

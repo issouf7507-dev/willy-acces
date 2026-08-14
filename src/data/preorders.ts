@@ -11,6 +11,9 @@ export interface PreorderProduct {
   name: string
   /** Prix applicable : le tarif de précommande tant que la période court. */
   price: number
+  /** Prix normal, celui qui reprend la main à la sortie d'une précommande.
+   *  Toujours renseigné par l'API, contrairement à `compareAtPrice`. */
+  basePrice?: number
   /** Prix normal barré, présent quand la précommande est moins chère. */
   compareAtPrice?: number
   /** Date de disponibilité au format ISO 8601 */

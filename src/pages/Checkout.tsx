@@ -225,7 +225,7 @@ export default function Checkout() {
                   <div key={`${item.id}-${item.color}`} className="flex gap-3">
                     <div className={`w-16 h-16 flex-shrink-0 bg-gradient-to-br ${item.gradientFrom} ${item.gradientTo} rounded-sm`} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm leading-snug truncate">{item.name}</p>
+                      <p className="font-semibold uppercase text-sm leading-snug truncate">{item.name}</p>
                       {item.color && <p className="text-xs text-zinc-400">{item.color}</p>}
                       <div className="flex items-center gap-2 mt-1">
                         <div className="flex items-center border border-zinc-300">
