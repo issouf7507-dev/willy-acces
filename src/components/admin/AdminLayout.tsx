@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import Logo from '../Logo'
+import { useSeo } from '../../lib/seo'
 
 interface AdminUser { name: string; role: string }
 
@@ -145,6 +146,8 @@ const nav: NavSection[] = [
 ]
 
 export default function AdminLayout() {
+  // Back-office : hors index, en plus du Disallow de robots.txt.
+  useSeo({ title: 'Back-office', noindex: true })
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)

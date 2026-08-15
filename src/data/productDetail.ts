@@ -64,8 +64,30 @@ export interface ProductDetailData {
   galleryImages: GalleryImage[]
   /** Lien vers une vidéo TikTok du produit, saisi en back-office (facultatif). */
   tiktokUrl?: string
+  /** Métadonnées de référencement saisies en back-office (facultatives). */
+  seoTitle?: string
+  seoDescription?: string
 }
 
+/**
+ * Nom de produit → segment d'URL, avec la même règle que `slugify` côté API :
+ * les accents sont translittérés (é → e) au lieu d'être supprimés. L'ancienne
+ * version rendait « Porte-clés cuir tressé » en `porte-cls-cuir-tress`.
+ */
 export function nameToHandle(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+/**
+ * Ancienne règle, qui jetait les caractères accentués. Conservée pour que les
+ * liens déjà partagés (WhatsApp, historique des clients) continuent d'ouvrir
+ * la bonne fiche.
+ */
+export function legacyNameToHandle(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 }

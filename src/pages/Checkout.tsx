@@ -11,6 +11,7 @@ import {
   buildWhatsappOrderMessage,
   whatsappHref,
 } from '../lib/whatsapp'
+import { useSeo } from '../lib/seo'
 
 const inputClass =
   'w-full px-3.5 py-2.5 text-sm border border-zinc-300 focus:border-black focus:outline-none bg-white transition-colors'
@@ -33,6 +34,7 @@ const EMPTY: FormState = {
 const money = (n: number) => formatPrice(n)
 
 export default function Checkout() {
+  useSeo({ title: 'Commande', noindex: true })
   const { items, total, updateQuantity, removeItem, clearCart } = useCart()
 
   const [form, setForm] = useState<FormState>(EMPTY)

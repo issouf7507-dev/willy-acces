@@ -13,6 +13,7 @@ import {
   countInCategory,
   type StoreCategory,
 } from '../lib/storefront'
+import { useSeo } from '../lib/seo'
 
 const PAGE_SIZE = 12
 
@@ -23,6 +24,14 @@ interface CategoryTab {
 }
 
 export default function Products() {
+  useSeo({
+    title: 'Tous les produits',
+    description:
+      'Le catalogue complet Willy Accessoires : sacs, accessoires et nouveautés, livrés à Abidjan et en région.',
+    // Les filtres (?category, ?q) pointent tous vers la même page canonique :
+    // sans ça, chaque combinaison serait indexée comme un doublon.
+    canonicalPath: '/products',
+  })
   const [products, setProducts] = useState<BagProduct[]>([])
   const [categories, setCategories] = useState<StoreCategory[]>([])
   const [loading, setLoading] = useState(true)

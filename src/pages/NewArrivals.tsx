@@ -6,6 +6,7 @@ import Footer from '../components/Footer'
 import CollectionProductCard from '../components/collection/CollectionProductCard'
 import { SORT_OPTIONS, type BagProduct } from '../data/bags'
 import { fetchFeaturedBags } from '../lib/storefront'
+import { useSeo } from '../lib/seo'
 
 const PAGE_SIZE = 12
 
@@ -26,6 +27,11 @@ const CATEGORY_DEFS: { id: string; label: string; filter: (p: BagProduct) => boo
 ]
 
 export default function NewArrivals() {
+  useSeo({
+    title: 'Nouveautés',
+    description: 'Les dernières arrivées chez Willy Accessoires, avant tout le monde.',
+    canonicalPath: '/collections/new-arrivals',
+  })
   const [products, setProducts] = useState<BagProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

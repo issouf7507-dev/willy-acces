@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { formatPrice } from '../lib/utils'
 import PreorderPrice from '../components/preorder/PreorderPrice'
 import { useParams, Link } from 'react-router-dom'
@@ -8,6 +8,7 @@ import ProductGallery from '../components/product/ProductGallery'
 import ProductInfo from '../components/product/ProductInfo'
 import type { ProductDetailData } from '../data/productDetail'
 import { fetchProductDetail } from '../lib/storefront'
+import { useSeo, seoText, SITE_URL, SITE_NAME } from '../lib/seo'
 
 function Stars({ rating, count }: { rating: number; count: number }) {
   const filled = Math.round(rating)
@@ -43,6 +44,53 @@ export default function ProductDetail() {
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [handle])
+
+  // Métadonnées + fiche produit structurée (schema.org). Les hooks passent
+  // avant les retours anticipés : pendant le chargement, la page annonce
+  // simplement la boutique.
+  const jsonLd = useMemo(() => {
+    if (!product) return null
+    const price = product.variants[0]?.price ?? 0
+    const available = product.variants.some(v => v.available)
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description: seoText(product.seoDescription ?? product.description, 300),
+      image: product.galleryImages.map(img => img.url).filter(Boolean),
+      sku: product.sku || undefined,
+      brand: { '@type': 'Brand', name: SITE_NAME },
+      offers: {
+        '@type': 'Offer',
+        // FCFA s'écrit XOF en ISO 4217, seul code que comprend schema.org.
+        priceCurrency: 'XOF',
+        price,
+        availability: available
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
+        url: `${SITE_URL}/products/${product.handle}`,
+      },
+      ...(product.reviews > 0 && {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: product.rating,
+          reviewCount: product.reviews,
+        },
+      }),
+    }
+  }, [product])
+
+  useSeo({
+    title: product ? product.seoTitle || product.name : undefined,
+    description: product
+      ? seoText(product.seoDescription ?? product.description) ||
+        `${product.name} — disponible chez ${SITE_NAME}.`
+      : undefined,
+    canonicalPath: product ? `/products/${product.handle}` : undefined,
+    image: product?.galleryImages[0]?.url,
+    type: 'product',
+    jsonLd,
+  })
 
   if (loading) {
     return (

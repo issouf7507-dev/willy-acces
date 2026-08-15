@@ -7,6 +7,7 @@ import { useSettings } from "../context/SettingsContext";
 import { fetchAccordion, type AccordionItemApi } from "../lib/storefront";
 import { DEFAULT_WHATSAPP_NUMBER, whatsappHref } from "../lib/whatsapp";
 import { formatPrice } from "../lib/utils";
+import { useSeo } from '../lib/seo'
 
 /**
  * Comment se passe une commande ici. Ces trois étapes décrivent le parcours
@@ -34,6 +35,12 @@ const STEPS = [
  * boutique et donne les moyens de nous joindre.
  */
 export default function Faq() {
+  useSeo({
+    title: 'Aide & FAQ',
+    description:
+      'Comment commander, payer et se faire livrer chez Willy Accessoires, et les réponses aux questions fréquentes.',
+    canonicalPath: '/faq',
+  })
   const [items, setItems] = useState<AccordionItemApi[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const { settings } = useSettings();

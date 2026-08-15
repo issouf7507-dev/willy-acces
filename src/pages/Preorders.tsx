@@ -5,8 +5,15 @@ import Footer from '../components/Footer'
 import PreorderCard from '../components/preorder/PreorderCard'
 import { fetchPreorders } from '../lib/storefront'
 import type { PreorderProduct } from '../data/preorders'
+import { useSeo } from '../lib/seo'
 
 export default function Preorders() {
+  useSeo({
+    title: 'Précommandes',
+    description:
+      'Réservez les produits à venir sans payer maintenant : livraison le jour de la sortie.',
+    canonicalPath: '/collections/produits-a-venir',
+  })
   const [products, setProducts] = useState<PreorderProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

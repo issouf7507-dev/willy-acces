@@ -19,6 +19,9 @@ interface Product {
   categoryId?: string | null; images: { url: string; alt?: string | null }[]
   /** Lien vers une vidéo TikTok du produit (facultatif). */
   tiktokUrl?: string | null
+  /** Métadonnées de référencement (facultatives). */
+  seoTitle?: string | null
+  seoDescription?: string | null
 }
 
 interface Props {
@@ -145,6 +148,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     releaseDate: toDateInput(product?.releaseDate),
     preorderPrice: String(product?.preorderPrice ?? ''),
     tiktokUrl: product?.tiktokUrl ?? '',
+    seoTitle: product?.seoTitle ?? '',
+    seoDescription: product?.seoDescription ?? '',
   })
 
   useEffect(() => {
@@ -258,6 +263,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
           form.isPreorder && Number(form.preorderPrice) > 0 ? Number(form.preorderPrice) : null,
         // Champ vidé = on efface le lien (`null`), pas « ne pas y toucher ».
         tiktokUrl: form.tiktokUrl.trim() || null,
+        seoTitle: form.seoTitle.trim() || undefined,
+        seoDescription: form.seoDescription.trim() || undefined,
         images: images
           .filter((img) => !img.uploading && !img.error && img.url.startsWith('https://'))
           .map((img, sortOrder) => ({ url: img.url, alt: img.alt || undefined, sortOrder })),
@@ -452,6 +459,26 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
               </div>
             )}
           </Field>
+
+          {/* Référencement : ce que Google affiche. Vide = le nom et la
+              description du produit servent de repli côté boutique. */}
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+            <p className="text-sm font-medium text-gray-700">Référencement (Google)</p>
+
+            <Field label="Titre SEO">
+              <input value={form.seoTitle} onChange={(e) => set('seoTitle', e.target.value)}
+                className={input} placeholder={form.name || 'Nom du produit'} maxLength={70} />
+              <p className="text-xs text-gray-400 mt-1.5">{form.seoTitle.length}/70 caractères</p>
+            </Field>
+
+            <Field label="Description SEO">
+              <textarea rows={2} value={form.seoDescription}
+                onChange={(e) => set('seoDescription', e.target.value)}
+                className={`${input} resize-none`} maxLength={160}
+                placeholder="Phrase affichée sous le titre dans les résultats de recherche" />
+              <p className="text-xs text-gray-400 mt-1.5">{form.seoDescription.length}/160 caractères</p>
+            </Field>
+          </div>
 
           <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
             <label className="flex items-center gap-2 cursor-pointer">
