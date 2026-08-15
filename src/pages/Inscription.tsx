@@ -4,6 +4,7 @@ import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { subscribe } from '../lib/storefront'
+import { useSeo } from '../lib/seo'
 
 const inputClass =
   'w-full px-3.5 py-2.5 text-sm border border-zinc-300 focus:border-black focus:outline-none bg-white transition-colors'
@@ -35,6 +36,12 @@ interface FormState {
 const EMPTY: FormState = { firstName: '', lastName: '', phone: '', email: '' }
 
 export default function Inscription() {
+  useSeo({
+    title: "S'inscrire",
+    description:
+      'Recevez les nouveautés, les promotions et les jeux concours Willy Accessoires. Sans compte à créer.',
+    canonicalPath: '/inscription',
+  })
   const [form, setForm] = useState<FormState>(EMPTY)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')

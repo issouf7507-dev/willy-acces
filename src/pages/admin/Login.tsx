@@ -129,9 +129,7 @@ export default function Login() {
 
           {/* Titre */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Bon retour 👋 admin@willy-accesoire.com + Admin1234!
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900">Bon retour 👋</h1>
             <p className="text-sm text-gray-500 mt-1.5">
               Connectez-vous à votre espace d'administration
             </p>

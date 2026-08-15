@@ -3,6 +3,7 @@ import { formatPrice } from '../lib/utils'
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import { useSeo } from '../lib/seo'
 
 interface OrderResponse {
   id: string
@@ -18,6 +19,7 @@ const money = (n: number) => formatPrice(n)
 const toNum = (v: string | number) => Number(v)
 
 export default function OrderConfirmation() {
+  useSeo({ title: 'Commande envoyée', noindex: true })
   const location = useLocation()
   const state = location.state as { order?: OrderResponse; unresolved?: string[] } | null
 

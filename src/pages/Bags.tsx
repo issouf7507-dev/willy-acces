@@ -7,6 +7,7 @@ import FilterDrawer, { matchesVolume, type ActiveFilters } from '../components/c
 import CollectionProductCard from '../components/collection/CollectionProductCard'
 import { SORT_OPTIONS, type BagProduct } from '../data/bags'
 import { fetchBags } from '../lib/storefront'
+import { useSeo } from '../lib/seo'
 
 const PAGE_SIZE = 12
 
@@ -21,6 +22,11 @@ const DEFAULT_FILTERS: ActiveFilters = {
 }
 
 export default function Bags() {
+  useSeo({
+    title: 'Sacs',
+    description: 'Sacs, sacs à dos et messagers Willy Accessoires, pour le bureau comme pour le week-end.',
+    canonicalPath: '/collections/bags',
+  })
   const [products, setProducts] = useState<BagProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')

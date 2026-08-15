@@ -9,10 +9,17 @@ import {
   type SalonServiceApi,
   type SalonCatalogueApi,
 } from '../lib/storefront'
+import { useSeo } from '../lib/seo'
 
 const XOF = new Intl.NumberFormat('fr-FR')
 
 export default function SalonDeBeaute() {
+  useSeo({
+    title: 'Salon de beauté',
+    description:
+      'Prestations coiffure et beauté du salon Willy à Abidjan : demandez votre devis en ligne.',
+    canonicalPath: '/salon-de-beaute',
+  })
   const [filter, setFilter] = useState('all')
   const [services, setServices] = useState<SalonServiceApi[]>([])
   const [catalogues, setCatalogues] = useState<SalonCatalogueApi[]>([])

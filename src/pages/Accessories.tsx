@@ -6,10 +6,16 @@ import Footer from '../components/Footer'
 import AccessoryCard from '../components/accessories/AccessoryCard'
 import { ACCESSORY_SORT_OPTIONS, type AccessoryProduct } from '../data/accessories'
 import { fetchAccessories, fetchCategories, childCategories, type StoreCategory } from '../lib/storefront'
+import { useSeo } from '../lib/seo'
 
 const PAGE_SIZE = 12
 
 export default function Accessories() {
+  useSeo({
+    title: 'Accessoires',
+    description: 'Les accessoires Willy : le détail qui change une tenue, livrés à Abidjan.',
+    canonicalPath: '/accessories',
+  })
   const [products, setProducts] = useState<AccessoryProduct[]>([])
   const [categories, setCategories] = useState<StoreCategory[]>([])
   const [loading, setLoading] = useState(true)

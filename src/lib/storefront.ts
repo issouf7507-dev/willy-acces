@@ -4,6 +4,7 @@ import type { AccessoryProduct } from "../data/accessories";
 import type { PreorderProduct } from "../data/preorders";
 import {
   nameToHandle,
+  legacyNameToHandle,
   type ProductDetailData,
   type DetailVariant,
   type GalleryImage,
@@ -62,6 +63,9 @@ export interface ApiProduct {
   tags: string | null;
   /** Lien vers une vidéo TikTok du produit, saisi en back-office (facultatif). */
   tiktokUrl?: string | null;
+  /** Titre et description SEO saisis en back-office ; à défaut on retombe sur le nom. */
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   images: { url: string; alt?: string | null }[];
   category: { id: string; name: string; slug: string } | null;
   metadata: ProductMetadata | null;
@@ -471,6 +475,8 @@ export function buildProductDetail(p: ApiProduct): ProductDetailData {
     collectionName: p.category?.name ?? "Boutique",
     galleryImages,
     tiktokUrl: p.tiktokUrl ?? undefined,
+    seoTitle: p.seoTitle ?? undefined,
+    seoDescription: p.seoDescription ?? undefined,
   };
 }
 
@@ -478,7 +484,13 @@ export async function fetchProductDetail(
   handle: string,
 ): Promise<ProductDetailData | null> {
   const all = await fetchAll();
-  const match = all.find((p) => nameToHandle(p.name) === handle);
+  // Trois clés acceptées : le slug de l'API, le handle calculé depuis le nom,
+  // et l'ancien handle sans accents — les liens déjà partagés doivent continuer
+  // d'ouvrir la fiche, même après la correction des URL.
+  const match =
+    all.find((p) => p.slug === handle) ??
+    all.find((p) => nameToHandle(p.name) === handle) ??
+    all.find((p) => legacyNameToHandle(p.name) === handle);
   return match ? buildProductDetail(match) : null;
 }
 

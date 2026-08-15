@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Back-office et tunnel de commande : rien d'utile pour un moteur, et le
+# contenu n'est accessible qu'authentifié.
+Disallow: /admin
+Disallow: /checkout
+Disallow: /order-confirmation
+
+Sitemap: https://willyaccessoire.com/sitemap.xml

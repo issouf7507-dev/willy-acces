@@ -17,6 +17,7 @@ import {
   fetchFeaturedReviews,
   rootCategories,
 } from "../lib/storefront";
+import { useSeo, SITE_NAME, SITE_URL } from '../lib/seo'
 
 /**
  * Visuel de la bannière « Portez avec fierté », hébergé sur EdgeStore comme les
@@ -43,6 +44,20 @@ const FALLBACK_GRADIENTS = [
 ];
 
 export default function Home() {
+  useSeo({
+    title: 'Accessoires, sacs et salon de beauté à Abidjan',
+    description:
+      "Willy Accessoires : sacs, accessoires et prestations beauté. Nouveautés, précommandes et livraison à Abidjan.",
+    canonicalPath: '/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'Store',
+      name: SITE_NAME,
+      url: SITE_URL,
+      image: `${SITE_URL}/logo-512.png`,
+      areaServed: 'Abidjan, Côte d’Ivoire',
+    },
+  })
   const [bestsellers, setBestsellers] = useState<Product[]>([]);
   // Les précommandes mises en avant ont leur propre vitrine : mêlées à la
   // sélection ordinaire, leur compte à rebours et leur double prix passaient
