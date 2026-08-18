@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '../../lib/api'
 import { formatPrice } from '../../lib/utils'
+import { SERVICE_FEE_LABEL, serviceFee, totalWithServiceFee } from '../../lib/fees'
 import {
   Loader2, PackageCheck, Trash2, Phone, Mail, MapPin, Palette, CalendarClock,
   MessageCircle, ExternalLink, Hash, Boxes, AlertTriangle, ImageOff,
@@ -127,8 +128,12 @@ export default function Preorders() {
     setSelected(null); load()
   }
 
-  const total = (r: PreorderRequest) =>
+  /** Montant des articles, avant frais de service. */
+  const subtotal = (r: PreorderRequest) =>
     r.items.reduce((sum, i) => sum + Number(i.unitPrice) * i.quantity, 0)
+
+  /** Ce que le client a réellement à régler : c'est ce montant qu'il a vu. */
+  const total = (r: PreorderRequest) => totalWithServiceFee(subtotal(r))
 
   /** Résumé d'une demande en une ligne : au-delà d'un article on abrège. */
   const summary = (r: PreorderRequest) => {
@@ -278,9 +283,21 @@ export default function Preorders() {
                   </div>
                 </div>
               ))}
-              <div className="flex items-baseline justify-between gap-3 p-3">
-                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Total</span>
-                <span className="font-semibold text-gray-900">{formatPrice(total(selected))}</span>
+              <div className="p-3 space-y-1.5">
+                <div className="flex items-baseline justify-between gap-3 text-sm text-gray-500">
+                  <span>Sous-total</span>
+                  <span>{formatPrice(subtotal(selected))}</span>
+                </div>
+                <div className="flex items-baseline justify-between gap-3 text-sm text-gray-500">
+                  <span>{SERVICE_FEE_LABEL}</span>
+                  <span>{formatPrice(serviceFee(subtotal(selected)))}</span>
+                </div>
+                <div className="flex items-baseline justify-between gap-3 pt-1.5 border-t border-gray-200/70">
+                  <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                    Total à régler
+                  </span>
+                  <span className="font-semibold text-gray-900">{formatPrice(total(selected))}</span>
+                </div>
               </div>
             </div>
 

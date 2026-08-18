@@ -26,7 +26,11 @@ export interface WhatsappOrderLine {
 
 export interface WhatsappOrderDetails {
   items: WhatsappOrderLine[]
-  /** Total du panier, déjà formaté. */
+  /** Montant des articles avant frais, déjà formaté. Omis, seul le total sort. */
+  subtotal?: string
+  /** Frais de service, déjà formatés, affichés avec leur libellé. */
+  serviceFee?: { label: string; amount: string }
+  /** Montant final réclamé au client, frais compris, déjà formaté. */
   total: string
   name?: string
   phone?: string
@@ -45,6 +49,12 @@ export function buildWhatsappOrderMessage(d: WhatsappOrderDetails): string {
       i => `• ${i.quantity} x ${i.name}${i.variant ? ` (${i.variant})` : ''} — ${i.lineTotal}`,
     ),
     '',
+    // Le détail n'apparaît que si des frais s'appliquent : le client doit
+    // pouvoir refaire le calcul, sans alourdir le message quand il n'y a rien
+    // à détailler.
+    ...(d.subtotal && d.serviceFee
+      ? [`Sous-total : ${d.subtotal}`, `${d.serviceFee.label} : ${d.serviceFee.amount}`]
+      : []),
     `Total : ${d.total}`,
   ]
 
