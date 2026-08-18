@@ -1,26 +1,43 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '../../lib/api'
 import { formatPrice } from '../../lib/utils'
-import { Loader2, PackageCheck, Trash2, Phone, Mail, Palette, CalendarClock } from 'lucide-react'
+import {
+  Loader2, PackageCheck, Trash2, Phone, Mail, MapPin, Palette, CalendarClock,
+  MessageCircle, ExternalLink, Hash, Boxes, AlertTriangle, ImageOff,
+} from 'lucide-react'
 
 type Status = 'NEW' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED'
 
-interface PreorderRequest {
+interface PreorderItem {
   id: string
   productId: string | null
   productName: string
   unitPrice: string | number
   releaseDate: string | null
-  name: string
-  phone: string
-  email: string | null
   color: string | null
   quantity: number
+  product?: {
+    id: string
+    slug: string
+    sku: string | null
+    stock: number
+    isActive: boolean
+    images: { url: string; alt: string | null }[]
+  } | null
+}
+
+interface PreorderRequest {
+  id: string
+  name: string
+  phone: string
+  deliveryPlace: string | null
+  /** Renseignés uniquement sur les demandes reçues avant le retrait de ces champs. */
+  email: string | null
   message: string | null
   status: Status
   adminNote: string | null
   createdAt: string
-  product?: { id: string; slug: string; images: { url: string }[] } | null
+  items: PreorderItem[]
 }
 
 interface PageData {
@@ -44,6 +61,28 @@ const FILTERS: { id: '' | Status; label: string }[] = [
 ]
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+
+/**
+ * Vignette produit. Une image absente — ou dont le fichier a disparu du
+ * stockage — laissait un carré blanc : on retombe sur un visuel neutre.
+ */
+function Thumb({ url, alt }: { url?: string; alt: string }) {
+  const [broken, setBroken] = useState(false)
+  const placeholder = (
+    <div className="w-20 h-20 rounded-lg bg-gray-200 shrink-0 flex items-center justify-center">
+      <ImageOff className="w-6 h-6 text-gray-400" />
+    </div>
+  )
+  if (!url || broken) return placeholder
+  return (
+    <img
+      src={url}
+      alt={alt}
+      onError={() => setBroken(true)}
+      className="w-20 h-20 rounded-lg object-cover shrink-0 bg-white"
+    />
+  )
+}
 
 export default function Preorders() {
   const [data, setData] = useState<PageData | null>(null)
@@ -88,7 +127,16 @@ export default function Preorders() {
     setSelected(null); load()
   }
 
-  const total = (r: PreorderRequest) => Number(r.unitPrice) * r.quantity
+  const total = (r: PreorderRequest) =>
+    r.items.reduce((sum, i) => sum + Number(i.unitPrice) * i.quantity, 0)
+
+  /** Résumé d'une demande en une ligne : au-delà d'un article on abrège. */
+  const summary = (r: PreorderRequest) => {
+    const [first, ...rest] = r.items
+    if (!first) return 'Aucun article'
+    const head = `${first.quantity} × ${first.productName}${first.color ? ` · ${first.color}` : ''}`
+    return rest.length ? `${head} + ${rest.length} autre(s)` : head
+  }
 
   return (
     <div className="p-6 lg:p-8">
@@ -121,8 +169,8 @@ export default function Preorders() {
             {data.items.map((r) => (
               <button key={r.id} onClick={() => open(r)}
                 className="w-full text-left flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors">
-                {r.product?.images?.[0]?.url ? (
-                  <img src={r.product.images[0]!.url} alt="" className="w-10 h-10 rounded object-cover shrink-0" />
+                {r.items[0]?.product?.images?.[0]?.url ? (
+                  <img src={r.items[0]!.product!.images[0]!.url} alt="" className="w-10 h-10 rounded object-cover shrink-0" />
                 ) : (
                   <div className="w-10 h-10 rounded bg-gray-100 shrink-0" />
                 )}
@@ -131,9 +179,7 @@ export default function Preorders() {
                     <span className="font-medium text-gray-900">{r.name}</span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                    {r.quantity} × {r.productName}{r.color ? ` · ${r.color}` : ''}
-                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{summary(r)}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-medium text-gray-900">{formatPrice(total(r))}</p>
@@ -148,11 +194,14 @@ export default function Preorders() {
       {/* Détail */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="font-semibold text-gray-900 text-lg">{selected.name}</h2>
-                <p className="text-xs text-gray-400">Reçue le {DATE_FMT.format(new Date(selected.createdAt))}</p>
+                <p className="text-xs text-gray-400">
+                  Reçue le {DATE_FMT.format(new Date(selected.createdAt))} ·{' '}
+                  {selected.items.reduce((n, i) => n + i.quantity, 0)} article(s)
+                </p>
               </div>
               <button onClick={() => remove(selected.id)}
                 className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
@@ -160,32 +209,105 @@ export default function Preorders() {
               </button>
             </div>
 
-            {/* Le produit et le prix sont ceux figés à la soumission : ils restent
+            {/* Les produits et les prix sont ceux figés à la soumission : ils restent
                 justes même si le tarif a changé ou le produit été supprimé. */}
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="font-medium text-gray-900">{selected.productName}</p>
-              <p className="text-sm text-gray-600 mt-0.5">
-                {selected.quantity} × {formatPrice(Number(selected.unitPrice))} = <span className="font-semibold">{formatPrice(total(selected))}</span>
-              </p>
-              {selected.releaseDate && (
-                <p className="flex items-center gap-2 text-xs text-gray-400 mt-1.5">
-                  <CalendarClock className="w-3.5 h-3.5" />
-                  Sortie prévue le {DATE_FMT.format(new Date(selected.releaseDate))}
-                </p>
-              )}
+            <div className="bg-gray-50 rounded-lg divide-y divide-gray-200/70">
+              {selected.items.map((item) => (
+                <div key={item.id} className="flex gap-3 p-3">
+                  <Thumb
+                    url={item.product?.images?.[0]?.url}
+                    alt={item.product?.images?.[0]?.alt ?? item.productName}
+                  />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="font-medium text-gray-900">{item.productName}</p>
+                      <p className="text-sm font-semibold text-gray-900 shrink-0">
+                        {formatPrice(Number(item.unitPrice) * item.quantity)}
+                      </p>
+                    </div>
+
+                    <p className="text-sm text-gray-600 mt-0.5">
+                      {item.quantity} × {formatPrice(Number(item.unitPrice))}
+                      {item.color && (
+                        <span className="inline-flex items-center gap-1.5 ml-2 text-gray-500">
+                          <Palette className="w-3.5 h-3.5" />{item.color}
+                        </span>
+                      )}
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-400">
+                      {item.releaseDate && (
+                        <span className="flex items-center gap-1.5">
+                          <CalendarClock className="w-3.5 h-3.5" />
+                          Sortie le {DATE_FMT.format(new Date(item.releaseDate))}
+                        </span>
+                      )}
+                      {item.product?.sku && (
+                        <span className="flex items-center gap-1.5">
+                          <Hash className="w-3.5 h-3.5" />{item.product.sku}
+                        </span>
+                      )}
+                      {item.product && (
+                        <span className="flex items-center gap-1.5">
+                          <Boxes className="w-3.5 h-3.5" />Stock {item.product.stock}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Le produit peut avoir été retiré ou dépublié depuis la
+                        réservation : la ligne reste juste, mais il faut le voir. */}
+                    {!item.product ? (
+                      <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" />Produit supprimé du catalogue
+                      </p>
+                    ) : !item.product.isActive ? (
+                      <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" />Produit désactivé
+                      </p>
+                    ) : (
+                      <a
+                        href={`/products/${item.product.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 mt-1.5 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />Voir la fiche produit
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-baseline justify-between gap-3 p-3">
+                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Total</span>
+                <span className="font-semibold text-gray-900">{formatPrice(total(selected))}</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
-              <a href={`tel:${selected.phone}`} className="flex items-center gap-2 hover:text-gray-900">
-                <Phone className="w-4 h-4 text-gray-400" />{selected.phone}
-              </a>
+            <div className="space-y-2 text-sm text-gray-700">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <a href={`tel:${selected.phone}`} className="flex items-center gap-2 hover:text-gray-900">
+                  <Phone className="w-4 h-4 text-gray-400" />{selected.phone}
+                </a>
+                {/* Rappel du client en un clic : c'est par WhatsApp que la
+                    confirmation se fait, pas par email. */}
+                <a
+                  href={`https://wa.me/${selected.phone.replace(/\D/g, '')}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-green-700 hover:text-green-800"
+                >
+                  <MessageCircle className="w-4 h-4" />WhatsApp
+                </a>
+              </div>
+              {selected.deliveryPlace && (
+                <p className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />{selected.deliveryPlace}
+                </p>
+              )}
               {selected.email && (
                 <a href={`mailto:${selected.email}`} className="flex items-center gap-2 truncate hover:text-gray-900">
                   <Mail className="w-4 h-4 text-gray-400" />{selected.email}
                 </a>
-              )}
-              {selected.color && (
-                <span className="flex items-center gap-2"><Palette className="w-4 h-4 text-gray-400" />{selected.color}</span>
               )}
             </div>
 

@@ -20,15 +20,13 @@ const labelClass = 'block text-xs font-bold uppercase tracking-wide text-zinc-70
 interface FormState {
   name: string
   phone: string
-  email: string
   address: string
-  city: string
   couponCode: string
   notes: string
 }
 
 const EMPTY: FormState = {
-  name: '', phone: '', email: '', address: '', city: '', couponCode: '', notes: '',
+  name: '', phone: '', address: '', couponCode: '', notes: '',
 }
 
 const money = (n: number) => formatPrice(n)
@@ -69,8 +67,7 @@ export default function Checkout() {
       total: money(total),
       name: form.name.trim() || undefined,
       phone: form.phone.trim() || undefined,
-      email: form.email.trim() || undefined,
-      address: [form.address.trim(), form.city.trim()].filter(Boolean).join(', ') || undefined,
+      address: form.address.trim() || undefined,
       couponCode: form.couponCode.trim() || undefined,
       notes: form.notes.trim() || undefined,
     })
@@ -85,15 +82,9 @@ export default function Checkout() {
     setError('')
 
     if (items.length === 0) return
-    if (
-      !form.name.trim() ||
-      !form.phone.trim() ||
-      !form.address.trim() ||
-      !form.city.trim()
-    ) {
+    if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
       setError(
-        'Merci de renseigner votre nom, votre téléphone, ainsi que votre adresse et votre ' +
-        'ville / quartier de livraison.',
+        'Merci de renseigner votre nom, votre téléphone et votre adresse de livraison.',
       )
       return
     }
@@ -171,19 +162,8 @@ export default function Checkout() {
               </div>
 
               <div>
-                <label className={labelClass} htmlFor="c-email">E-mail</label>
-                <input id="c-email" type="email" className={inputClass} value={form.email} onChange={e => set('email', e.target.value)} />
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelClass} htmlFor="c-address">Adresse de livraison *</label>
-                  <input id="c-address" className={inputClass} value={form.address} onChange={e => set('address', e.target.value)} required placeholder="Riviera 3, rue des Jardins" />
-                </div>
-                <div>
-                  <label className={labelClass} htmlFor="c-city">Ville / Quartier *</label>
-                  <input id="c-city" className={inputClass} value={form.city} onChange={e => set('city', e.target.value)} required placeholder="Abidjan, Cocody" />
-                </div>
+                <label className={labelClass} htmlFor="c-address">Adresse de livraison *</label>
+                <input id="c-address" className={inputClass} value={form.address} onChange={e => set('address', e.target.value)} required placeholder="Riviera 3, Cocody" />
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">

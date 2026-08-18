@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { usePreorder } from "../context/PreorderContext";
 import Logo from "./Logo";
 import SearchOverlay from "./SearchOverlay";
 import AccountMenu from "./AccountMenu";
@@ -17,6 +18,9 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { openCart, itemCount } = useCart();
+  // Le panier de précommande n'apparaît que s'il contient quelque chose : sans
+  // réservation en cours, l'icône n'aurait rien à ouvrir.
+  const { openCart: openPreorderCart, itemCount: preorderCount } = usePreorder();
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-zinc-200 shadow-sm">
@@ -97,6 +101,32 @@ export default function Header() {
               </svg>
             </button>
             <AccountMenu />
+
+            {preorderCount > 0 && (
+              <button
+                onClick={openPreorderCart}
+                className="relative p-2 hover:opacity-60 transition-opacity"
+                aria-label="Ouvrir mes précommandes"
+                title="Mes précommandes"
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <polyline points="12 7 12 12 15 14" />
+                </svg>
+                <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] bg-black text-white text-[10px] rounded-full flex items-center justify-center font-bold px-0.5">
+                  {preorderCount}
+                </span>
+              </button>
+            )}
 
             {/* Cart button — branché au context */}
             <button
