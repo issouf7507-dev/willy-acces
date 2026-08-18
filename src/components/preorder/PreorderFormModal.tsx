@@ -1,7 +1,10 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { api } from '../../lib/api'
 import { formatPrice } from '../../lib/utils'
-import { usePreorder } from '../../context/PreorderContext'
+import { usePreorder, type PreorderItem } from '../../context/PreorderContext'
+import { useSettings } from '../../context/SettingsContext'
+import { DEFAULT_WHATSAPP_NUMBER, whatsappHref } from '../../lib/whatsapp'
+import { WAVE_PAYMENT_URL } from '../../lib/payment'
 import Countdown from './Countdown'
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
@@ -11,34 +14,41 @@ const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
 })
 
 /**
- * Formulaire de réservation d'un produit pas encore sorti. Volontairement
- * distinct du tunnel de commande : rien n'est payé ni livré maintenant, on
- * collecte de quoi rappeler le client à la sortie.
+ * Panier de réservation des produits pas encore sortis. Volontairement distinct
+ * du tunnel de commande : rien n'est payé ni livré maintenant, on collecte de
+ * quoi rappeler le client à la sortie. Plusieurs produits partent en une seule
+ * demande, pour que le back-office n'ait qu'un statut à suivre.
  */
 export default function PreorderFormModal() {
-  const { target, isOpen, close } = usePreorder()
+  const { items, isOpen, close, setColor, setQuantity, remove, clear, total } = usePreorder()
+  const { settings } = useSettings()
 
-  const [form, setForm] = useState({ name: '', phone: '', email: '', color: '', quantity: '1', message: '' })
+  const [form, setForm] = useState({ name: '', phone: '', deliveryPlace: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+  /** Figé avant le vidage du panier : la confirmation doit survivre à `clear()`. */
+  const [receipt, setReceipt] = useState<{ total: number; lastRelease?: string }>({ total: 0 })
 
   // La modale reste montée entre deux ouvertures : sans cette remise à zéro,
-  // rouvrir sur un autre produit réafficherait la confirmation précédente et les
-  // champs déjà remplis. Le coloris choisi sur la fiche sert de valeur initiale.
-  const targetId = target?.productId
-  const defaultColor = target?.defaultColor ?? ''
+  // la rouvrir réafficherait la confirmation précédente.
   useEffect(() => {
     if (!isOpen) return
-    setForm({ name: '', phone: '', email: '', color: defaultColor, quantity: '1', message: '' })
     setError('')
     setDone(false)
-  }, [isOpen, targetId, defaultColor])
+  }, [isOpen])
 
-  if (!isOpen || !target) return null
+  if (!isOpen) return null
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const handleClose = () => close()
+
+  /** Date de sortie la plus lointaine : c'est elle qui commande la livraison. */
+  const lastRelease = items
+    .map((i) => i.releaseDate)
+    .filter((d): d is string => Boolean(d))
+    .sort()
+    .at(-1)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -46,14 +56,19 @@ export default function PreorderFormModal() {
     setLoading(true)
     try {
       await api.post('/preorders', {
-        productId: target!.productId,
         name: form.name,
         phone: form.phone,
-        email: form.email || undefined,
-        color: form.color || undefined,
-        quantity: Number(form.quantity) || 1,
-        message: form.message || undefined,
+        deliveryPlace: form.deliveryPlace,
+        items: items.map((i) => ({
+          productId: i.productId,
+          color: i.color || undefined,
+          quantity: i.quantity,
+        })),
       })
+      // Le panier est vidé une fois la demande enregistrée, mais `done` garde la
+      // confirmation à l'écran — d'où la lecture du téléphone dans `form`.
+      setReceipt({ total, lastRelease })
+      clear()
       setDone(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'enregistrer la précommande")
@@ -62,9 +77,6 @@ export default function PreorderFormModal() {
     }
   }
 
-  const quantity = Number(form.quantity) || 1
-  const total = target.price * quantity
-
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50 p-0 md:p-4">
       <div className="bg-white w-full md:max-w-lg max-h-[92vh] flex flex-col">
@@ -72,7 +84,9 @@ export default function PreorderFormModal() {
         <div className="flex items-start justify-between gap-4 px-5 md:px-6 py-4 border-b border-zinc-100">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Précommande</p>
-            <h2 className="font-black uppercase tracking-tight text-lg leading-tight">{target.name}</h2>
+            <h2 className="font-black uppercase tracking-tight text-lg leading-tight">
+              {done ? 'Confirmation' : items.length > 1 ? `${items.length} articles` : 'Ma réservation'}
+            </h2>
           </div>
           <button
             onClick={handleClose}
@@ -87,45 +101,108 @@ export default function PreorderFormModal() {
         </div>
 
         {done ? (
-          <div className="px-5 md:px-6 py-10 text-center">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-emerald-50 flex items-center justify-center">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+          <div className="overflow-y-auto px-5 md:px-6 py-8">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-emerald-50 flex items-center justify-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <h3 className="font-black uppercase tracking-tight mb-2">Précommande enregistrée</h3>
+              <p className="text-sm text-zinc-500 max-w-xs mx-auto">
+                Nous vous rappelons au {form.phone} pour confirmer.
+                {receipt.lastRelease &&
+                  ` Livraison prévue dès le ${DATE_FMT.format(new Date(receipt.lastRelease))}.`}
+              </p>
             </div>
-            <h3 className="font-black uppercase tracking-tight mb-2">Précommande enregistrée</h3>
-            <p className="text-sm text-zinc-500 max-w-xs mx-auto">
-              Nous vous rappelons au {form.phone} pour confirmer.
-              {target.releaseDate && ` Livraison prévue dès le ${DATE_FMT.format(new Date(target.releaseDate))}.`}
+
+            {/* Paiement d'avance : facultatif, mais c'est ce qui sécurise la
+                réservation. Le lien Wave ne porte pas de montant, d'où le
+                rappel du total et l'insistance sur la capture d'écran. */}
+            <div className="mt-6 border border-zinc-200">
+              <div className="flex items-baseline justify-between gap-3 px-4 py-3 border-b border-zinc-100">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                  Montant à régler
+                </span>
+                <span className="font-black">{formatPrice(receipt.total)}</span>
+              </div>
+
+              <div className="p-4">
+                <a
+                  href={WAVE_PAYMENT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-4 text-sm font-bold uppercase tracking-widest text-black transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: '#1DC8F0' }}
+                >
+                  Payer maintenant avec Wave
+                </a>
+
+                <div className="mt-3 bg-amber-50 border border-amber-200 p-3">
+                  <p className="text-sm font-bold text-amber-900">
+                    Important : envoyez-nous la capture du paiement
+                  </p>
+                  <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+                    Si vous payez maintenant, envoyez la capture d'écran sur WhatsApp.
+                    Sans elle, nous ne pouvons pas rattacher votre paiement à cette
+                    précommande.
+                  </p>
+                  <a
+                    href={whatsappHref(
+                      settings.whatsappNumber || DEFAULT_WHATSAPP_NUMBER,
+                      `Bonjour, voici la capture de mon paiement Wave pour ma précommande.\n` +
+                        `Nom : ${form.name}\nTéléphone : ${form.phone}\n` +
+                        `Montant : ${formatPrice(receipt.total)}`,
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-2.5 text-sm font-bold text-amber-900 underline underline-offset-4 hover:text-amber-950"
+                  >
+                    Envoyer ma capture sur WhatsApp
+                  </a>
+                </div>
+
+                <p className="mt-3 text-xs text-zinc-400 leading-relaxed">
+                  Le paiement d'avance n'est pas obligatoire : vous pouvez aussi régler
+                  à la livraison.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleClose}
+              className="mt-5 w-full py-3 border border-zinc-300 text-xs font-bold uppercase tracking-widest hover:bg-zinc-50 transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
+        ) : items.length === 0 ? (
+          <div className="px-5 md:px-6 py-12 text-center">
+            <h3 className="font-black uppercase tracking-tight mb-2">Aucune réservation</h3>
+            <p className="text-sm text-zinc-500">
+              Ajoutez un produit à venir pour le réserver avant sa sortie.
             </p>
             <button
               onClick={handleClose}
               className="mt-6 px-8 py-3 bg-black text-white text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors"
             >
-              Fermer
+              Continuer
             </button>
           </div>
         ) : (
           <>
-            <form id="preorder-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-5 md:px-6 py-5 space-y-4">
-              {/* Rappel de l'offre : ce qu'on paiera, et quand on sera livré */}
-              <div className="flex items-center gap-4 p-3 bg-zinc-50">
-                {target.imageUrl && (
-                  <img src={target.imageUrl} alt={target.name} className="w-16 h-16 object-cover shrink-0" />
-                )}
-                <div className="min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    {target.compareAtPrice && target.compareAtPrice > target.price && (
-                      <span className="text-xs text-zinc-400 line-through">{formatPrice(target.compareAtPrice)}</span>
-                    )}
-                    <span className="font-semibold">{formatPrice(target.price)}</span>
-                  </div>
-                  {target.releaseDate && (
-                    <div className="mt-1.5">
-                      <Countdown releaseDate={target.releaseDate} size="inline" />
-                    </div>
-                  )}
-                </div>
+            <form id="preorder-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-5 md:px-6 py-5 space-y-5">
+              {/* Les articles réservés : coloris et quantité restent modifiables ici */}
+              <div className="divide-y divide-zinc-100 border-y border-zinc-100">
+                {items.map((item) => (
+                  <Line
+                    key={item.productId}
+                    item={item}
+                    onColor={(c) => setColor(item.productId, c)}
+                    onQuantity={(q) => setQuantity(item.productId, q)}
+                    onRemove={() => remove(item.productId)}
+                  />
+                ))}
               </div>
 
               <div className="grid md:grid-cols-2 gap-3">
@@ -139,31 +216,9 @@ export default function PreorderFormModal() {
                 </Field>
               </div>
 
-              <Field label="Email">
-                <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)}
-                  className={input} placeholder="pour recevoir la confirmation" autoComplete="email" />
-              </Field>
-
-              <div className="grid grid-cols-2 gap-3">
-                {target.colors && target.colors.length > 0 && (
-                  <Field label="Coloris">
-                    <select value={form.color} onChange={(e) => set('color', e.target.value)} className={input}>
-                      <option value="">— Indifférent —</option>
-                      {target.colors.map((c) => (
-                        <option key={c.hex} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                  </Field>
-                )}
-                <Field label="Quantité">
-                  <input type="number" min="1" max="50" value={form.quantity}
-                    onChange={(e) => set('quantity', e.target.value)} className={input} />
-                </Field>
-              </div>
-
-              <Field label="Message">
-                <textarea rows={2} value={form.message} onChange={(e) => set('message', e.target.value)}
-                  className={`${input} resize-none`} placeholder="Une précision sur votre commande ?" />
+              <Field label="Lieu de livraison *">
+                <input required value={form.deliveryPlace} onChange={(e) => set('deliveryPlace', e.target.value)}
+                  className={input} placeholder="Abidjan, Cocody Riviera 3" autoComplete="street-address" />
               </Field>
 
               {error && (
@@ -171,17 +226,15 @@ export default function PreorderFormModal() {
               )}
 
               <p className="text-xs text-zinc-400">
-                Aucun débit maintenant. Nous vous rappelons pour confirmer, et le règlement se fait
-                à la livraison.
+                Aucun débit à la réservation. Nous vous rappelons pour confirmer : vous pourrez
+                payer d'avance par Wave ou régler à la livraison.
               </p>
             </form>
 
             {/* Pied figé : le total reste visible pendant la saisie */}
             <div className="border-t border-zinc-100 px-5 md:px-6 py-4">
               <div className="flex items-baseline justify-between mb-3">
-                <span className="text-xs font-bold uppercase tracking-wide text-zinc-400">
-                  Total {quantity > 1 && `(${quantity} × ${formatPrice(target.price)})`}
-                </span>
+                <span className="text-xs font-bold uppercase tracking-wide text-zinc-400">Total</span>
                 <span className="font-black text-lg">{formatPrice(total)}</span>
               </div>
               <button
@@ -195,6 +248,84 @@ export default function PreorderFormModal() {
             </div>
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+function Line({
+  item, onColor, onQuantity, onRemove,
+}: {
+  item: PreorderItem
+  onColor: (color: string) => void
+  onQuantity: (quantity: number) => void
+  onRemove: () => void
+}) {
+  return (
+    <div className="flex gap-3 py-3">
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover shrink-0" />
+      ) : (
+        <div className="w-16 h-16 bg-zinc-100 shrink-0" />
+      )}
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold leading-tight truncate">{item.name}</p>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Retirer ${item.name}`}
+            className="text-zinc-300 hover:text-black transition-colors shrink-0"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex items-baseline gap-2 mt-0.5">
+          {item.compareAtPrice && item.compareAtPrice > item.price && (
+            <span className="text-xs text-zinc-400 line-through">{formatPrice(item.compareAtPrice)}</span>
+          )}
+          <span className="text-sm">{formatPrice(item.price)}</span>
+        </div>
+
+        {item.releaseDate && (
+          <div className="mt-1">
+            <Countdown releaseDate={item.releaseDate} size="inline" />
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mt-2">
+          {item.colors && item.colors.length > 0 && (
+            <select
+              value={item.color}
+              onChange={(e) => onColor(e.target.value)}
+              aria-label={`Coloris pour ${item.name}`}
+              className="flex-1 min-w-0 px-2 py-1.5 border border-zinc-200 text-xs focus:outline-none focus:border-black transition"
+            >
+              <option value="">— Indifférent —</option>
+              {item.colors.map((c) => (
+                <option key={c.hex} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          )}
+          <div className="flex items-center border border-zinc-200 shrink-0">
+            <button
+              type="button" onClick={() => onQuantity(item.quantity - 1)}
+              aria-label="Diminuer la quantité"
+              className="w-7 h-7 text-sm hover:bg-zinc-50 transition-colors"
+            >−</button>
+            <span className="w-7 text-center text-xs font-semibold">{item.quantity}</span>
+            <button
+              type="button" onClick={() => onQuantity(item.quantity + 1)}
+              aria-label="Augmenter la quantité"
+              className="w-7 h-7 text-sm hover:bg-zinc-50 transition-colors"
+            >+</button>
+          </div>
+        </div>
       </div>
     </div>
   )

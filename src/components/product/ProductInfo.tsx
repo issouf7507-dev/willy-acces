@@ -56,29 +56,38 @@ interface ProductInfoProps {
 
 export default function ProductInfo({ product, selectedVariantIndex, onVariantChange }: ProductInfoProps) {
   const { addItem } = useCart()
-  const { open: openPreorder } = usePreorder()
+  const { open: openPreorder, add: addPreorder } = usePreorder()
   const [featuresExpanded, setFeaturesExpanded] = useState(false)
   const [sizingOpen, setSizingOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
+  const [preorderAdded, setPreorderAdded] = useState(false)
 
   const variant = product.variants[selectedVariantIndex]
 
   // Un produit pas encore sorti ne s'ajoute pas au panier : il passe par le
   // formulaire de réservation, sans paiement.
-  const handlePreorder = () => {
-    openPreorder({
-      productId: product.productId,
-      name: product.name,
-      price: variant.price,
-      compareAtPrice: variant.compareAtPrice,
-      releaseDate: product.releaseDate,
-      imageUrl: product.imageUrl,
-      colors: product.hasColorVariants
-        ? product.variants.map(v => ({ name: v.name, hex: v.hex }))
-        : undefined,
-      defaultColor: product.hasColorVariants ? variant.name : undefined,
-    })
+  const preorderTarget = () => ({
+    productId: product.productId,
+    name: product.name,
+    price: variant.price,
+    compareAtPrice: variant.compareAtPrice,
+    releaseDate: product.releaseDate,
+    imageUrl: product.imageUrl,
+    colors: product.hasColorVariants
+      ? product.variants.map(v => ({ name: v.name, hex: v.hex }))
+      : undefined,
+    defaultColor: product.hasColorVariants ? variant.name : undefined,
+  })
+
+  /** Réserve tout de suite : le panier s'ouvre sur le formulaire. */
+  const handlePreorder = () => openPreorder(preorderTarget())
+
+  /** Met de côté sans ouvrir le panier, pour continuer à parcourir le catalogue. */
+  const handleAddPreorder = () => {
+    addPreorder(preorderTarget())
+    setPreorderAdded(true)
+    setTimeout(() => setPreorderAdded(false), 2000)
   }
 
   const handleAddToCart = () => {
@@ -321,6 +330,30 @@ export default function ProductInfo({ product, selectedVariantIndex, onVariantCh
             'Ajouter au panier'
           )}
         </button>
+
+        {/* Sur une précommande, on peut aussi empiler plusieurs articles avant
+            de remplir ses coordonnées une seule fois. */}
+        {product.isPreorder && variant.available && (
+          <button
+            onClick={handleAddPreorder}
+            className={`mt-2.5 w-full py-4 text-sm font-bold uppercase tracking-widest border transition-all flex items-center justify-center gap-2 ${
+              preorderAdded
+                ? 'border-green-600 text-green-700'
+                : 'border-black text-black hover:bg-black hover:text-white'
+            }`}
+          >
+            {preorderAdded ? (
+              <>
+                <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
+                  <path d="M1 6l4 4 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+                Ajouté à la précommande !
+              </>
+            ) : (
+              'Ajouter à la précommande'
+            )}
+          </button>
+        )}
       </div>
 
       {/* Dimensions & matériaux — uniquement si renseignés */}
