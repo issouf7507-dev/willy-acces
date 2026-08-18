@@ -5,6 +5,7 @@ import { usePreorder, type PreorderItem } from '../../context/PreorderContext'
 import { useSettings } from '../../context/SettingsContext'
 import { DEFAULT_WHATSAPP_NUMBER, whatsappHref } from '../../lib/whatsapp'
 import { WAVE_PAYMENT_URL } from '../../lib/payment'
+import { SERVICE_FEE_LABEL, serviceFee, totalWithServiceFee } from '../../lib/fees'
 import Countdown from './Countdown'
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
@@ -29,6 +30,11 @@ export default function PreorderFormModal() {
   const [done, setDone] = useState(false)
   /** Figé avant le vidage du panier : la confirmation doit survivre à `clear()`. */
   const [receipt, setReceipt] = useState<{ total: number; lastRelease?: string }>({ total: 0 })
+
+  // `total` du panier = montant des articles ; c'est le montant frais compris
+  // qui est annoncé au client et réglé par Wave.
+  const fee = serviceFee(total)
+  const grandTotal = totalWithServiceFee(total)
 
   // La modale reste montée entre deux ouvertures : sans cette remise à zéro,
   // la rouvrir réafficherait la confirmation précédente.
@@ -67,7 +73,7 @@ export default function PreorderFormModal() {
       })
       // Le panier est vidé une fois la demande enregistrée, mais `done` garde la
       // confirmation à l'écran — d'où la lecture du téléphone dans `form`.
-      setReceipt({ total, lastRelease })
+      setReceipt({ total: grandTotal, lastRelease })
       clear()
       setDone(true)
     } catch (err) {
@@ -233,9 +239,17 @@ export default function PreorderFormModal() {
 
             {/* Pied figé : le total reste visible pendant la saisie */}
             <div className="border-t border-zinc-100 px-5 md:px-6 py-4">
-              <div className="flex items-baseline justify-between mb-3">
+              <div className="flex items-baseline justify-between text-sm text-zinc-500">
+                <span>Sous-total</span>
+                <span>{formatPrice(total)}</span>
+              </div>
+              <div className="flex items-baseline justify-between text-sm text-zinc-500 mt-1">
+                <span>{SERVICE_FEE_LABEL}</span>
+                <span>{formatPrice(fee)}</span>
+              </div>
+              <div className="flex items-baseline justify-between mt-2 mb-3 pt-2 border-t border-zinc-100">
                 <span className="text-xs font-bold uppercase tracking-wide text-zinc-400">Total</span>
-                <span className="font-black text-lg">{formatPrice(total)}</span>
+                <span className="font-black text-lg">{formatPrice(grandTotal)}</span>
               </div>
               <button
                 type="submit"
