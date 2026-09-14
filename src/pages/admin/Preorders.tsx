@@ -47,10 +47,10 @@ interface PageData {
 }
 
 const STATUS: Record<Status, { label: string; cls: string }> = {
-  NEW:       { label: 'Nouvelle',  cls: 'bg-blue-50 text-blue-700' },
-  CONFIRMED: { label: 'Confirmée', cls: 'bg-amber-50 text-amber-700' },
+  NEW:       { label: 'Nouvelle',  cls: 'bg-info/10 text-info' },
+  CONFIRMED: { label: 'Confirmée', cls: 'bg-warning/10 text-warning' },
   DELIVERED: { label: 'Livrée',    cls: 'bg-green-50 text-green-700' },
-  CANCELLED: { label: 'Annulée',   cls: 'bg-gray-100 text-gray-500' },
+  CANCELLED: { label: 'Annulée',   cls: 'bg-muted text-muted-foreground' },
 }
 
 const FILTERS: { id: '' | Status; label: string }[] = [
@@ -71,7 +71,7 @@ function Thumb({ url, alt }: { url?: string; alt: string }) {
   const [broken, setBroken] = useState(false)
   const placeholder = (
     <div className="w-20 h-20 rounded-lg bg-gray-200 shrink-0 flex items-center justify-center">
-      <ImageOff className="w-6 h-6 text-gray-400" />
+      <ImageOff className="w-6 h-6 text-muted-foreground" />
     </div>
   )
   if (!url || broken) return placeholder
@@ -80,7 +80,7 @@ function Thumb({ url, alt }: { url?: string; alt: string }) {
       src={url}
       alt={alt}
       onError={() => setBroken(true)}
-      className="w-20 h-20 rounded-lg object-cover shrink-0 bg-white"
+      className="w-20 h-20 rounded-lg object-cover shrink-0 bg-card"
     />
   )
 }
@@ -146,8 +146,8 @@ export default function Preorders() {
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Précommandes</h1>
-        <p className="text-sm text-gray-500 mt-1">{data?.meta.total ?? '—'} demande(s) — aucun paiement encaissé</p>
+        <h1 className="text-2xl font-bold text-foreground">Précommandes</h1>
+        <p className="text-sm text-muted-foreground mt-1">{data?.meta.total ?? '—'} demande(s) — aucun paiement encaissé</p>
       </div>
 
       {/* Filtres */}
@@ -155,40 +155,40 @@ export default function Preorders() {
         {FILTERS.map((f) => (
           <button key={f.id || 'all'} onClick={() => setFilter(f.id)}
             className={`flex-shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition-colors ${
-              filter === f.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+              filter === f.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:border-ring/40'
             }`}>
             {f.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+          <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : !data?.items.length ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-2 text-gray-400">
+          <div className="flex flex-col items-center justify-center h-48 gap-2 text-muted-foreground">
             <PackageCheck className="w-8 h-8" /><p className="text-sm">Aucune précommande</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border">
             {data.items.map((r) => (
               <button key={r.id} onClick={() => open(r)}
-                className="w-full text-left flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors">
+                className="w-full text-left flex items-center gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
                 {r.items[0]?.product?.images?.[0]?.url ? (
                   <img src={r.items[0]!.product!.images[0]!.url} alt="" className="w-10 h-10 rounded object-cover shrink-0" />
                 ) : (
-                  <div className="w-10 h-10 rounded bg-gray-100 shrink-0" />
+                  <div className="w-10 h-10 rounded bg-muted shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-gray-900">{r.name}</span>
+                    <span className="font-medium text-foreground">{r.name}</span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{summary(r)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{summary(r)}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-medium text-gray-900">{formatPrice(total(r))}</p>
-                  <p className="text-xs text-gray-400">{DATE_FMT.format(new Date(r.createdAt))}</p>
+                  <p className="text-sm font-medium text-foreground">{formatPrice(total(r))}</p>
+                  <p className="text-xs text-muted-foreground">{DATE_FMT.format(new Date(r.createdAt))}</p>
                 </div>
               </button>
             ))}
@@ -199,24 +199,24 @@ export default function Preorders() {
       {/* Détail */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="font-semibold text-gray-900 text-lg">{selected.name}</h2>
-                <p className="text-xs text-gray-400">
+                <h2 className="font-semibold text-foreground text-lg">{selected.name}</h2>
+                <p className="text-xs text-muted-foreground">
                   Reçue le {DATE_FMT.format(new Date(selected.createdAt))} ·{' '}
                   {selected.items.reduce((n, i) => n + i.quantity, 0)} article(s)
                 </p>
               </div>
               <button onClick={() => remove(selected.id)}
-                className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
+                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
 
             {/* Les produits et les prix sont ceux figés à la soumission : ils restent
                 justes même si le tarif a changé ou le produit été supprimé. */}
-            <div className="bg-gray-50 rounded-lg divide-y divide-gray-200/70">
+            <div className="bg-muted/50 rounded-lg divide-y divide-gray-200/70">
               {selected.items.map((item) => (
                 <div key={item.id} className="flex gap-3 p-3">
                   <Thumb
@@ -226,22 +226,22 @@ export default function Preorders() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className="font-medium text-gray-900">{item.productName}</p>
-                      <p className="text-sm font-semibold text-gray-900 shrink-0">
+                      <p className="font-medium text-foreground">{item.productName}</p>
+                      <p className="text-sm font-semibold text-foreground shrink-0">
                         {formatPrice(Number(item.unitPrice) * item.quantity)}
                       </p>
                     </div>
 
-                    <p className="text-sm text-gray-600 mt-0.5">
+                    <p className="text-sm text-muted-foreground mt-0.5">
                       {item.quantity} × {formatPrice(Number(item.unitPrice))}
                       {item.color && (
-                        <span className="inline-flex items-center gap-1.5 ml-2 text-gray-500">
+                        <span className="inline-flex items-center gap-1.5 ml-2 text-muted-foreground">
                           <Palette className="w-3.5 h-3.5" />{item.color}
                         </span>
                       )}
                     </p>
 
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-400">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                       {item.releaseDate && (
                         <span className="flex items-center gap-1.5">
                           <CalendarClock className="w-3.5 h-3.5" />
@@ -263,11 +263,11 @@ export default function Preorders() {
                     {/* Le produit peut avoir été retiré ou dépublié depuis la
                         réservation : la ligne reste juste, mais il faut le voir. */}
                     {!item.product ? (
-                      <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-1.5">
+                      <p className="flex items-center gap-1.5 text-xs text-warning mt-1.5">
                         <AlertTriangle className="w-3.5 h-3.5" />Produit supprimé du catalogue
                       </p>
                     ) : !item.product.isActive ? (
-                      <p className="flex items-center gap-1.5 text-xs text-amber-600 mt-1.5">
+                      <p className="flex items-center gap-1.5 text-xs text-warning mt-1.5">
                         <AlertTriangle className="w-3.5 h-3.5" />Produit désactivé
                       </p>
                     ) : (
@@ -275,7 +275,7 @@ export default function Preorders() {
                         href={`/products/${item.product.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 mt-1.5 transition-colors"
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mt-1.5 transition-colors"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />Voir la fiche produit
                       </a>
@@ -284,27 +284,27 @@ export default function Preorders() {
                 </div>
               ))}
               <div className="p-3 space-y-1.5">
-                <div className="flex items-baseline justify-between gap-3 text-sm text-gray-500">
+                <div className="flex items-baseline justify-between gap-3 text-sm text-muted-foreground">
                   <span>Sous-total</span>
                   <span>{formatPrice(subtotal(selected))}</span>
                 </div>
-                <div className="flex items-baseline justify-between gap-3 text-sm text-gray-500">
+                <div className="flex items-baseline justify-between gap-3 text-sm text-muted-foreground">
                   <span>{SERVICE_FEE_LABEL}</span>
                   <span>{formatPrice(serviceFee(subtotal(selected)))}</span>
                 </div>
-                <div className="flex items-baseline justify-between gap-3 pt-1.5 border-t border-gray-200/70">
-                  <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                <div className="flex items-baseline justify-between gap-3 pt-1.5 border-t border-border/70">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Total à régler
                   </span>
-                  <span className="font-semibold text-gray-900">{formatPrice(total(selected))}</span>
+                  <span className="font-semibold text-foreground">{formatPrice(total(selected))}</span>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2 text-sm text-gray-700">
+            <div className="space-y-2 text-sm text-foreground">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <a href={`tel:${selected.phone}`} className="flex items-center gap-2 hover:text-gray-900">
-                  <Phone className="w-4 h-4 text-gray-400" />{selected.phone}
+                <a href={`tel:${selected.phone}`} className="flex items-center gap-2 hover:text-foreground">
+                  <Phone className="w-4 h-4 text-muted-foreground" />{selected.phone}
                 </a>
                 {/* Rappel du client en un clic : c'est par WhatsApp que la
                     confirmation se fait, pas par email. */}
@@ -318,26 +318,26 @@ export default function Preorders() {
               </div>
               {selected.deliveryPlace && (
                 <p className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />{selected.deliveryPlace}
+                  <MapPin className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />{selected.deliveryPlace}
                 </p>
               )}
               {selected.email && (
-                <a href={`mailto:${selected.email}`} className="flex items-center gap-2 truncate hover:text-gray-900">
-                  <Mail className="w-4 h-4 text-gray-400" />{selected.email}
+                <a href={`mailto:${selected.email}`} className="flex items-center gap-2 truncate hover:text-foreground">
+                  <Mail className="w-4 h-4 text-muted-foreground" />{selected.email}
                 </a>
               )}
             </div>
 
             {selected.message && (
-              <div className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">{selected.message}</div>
+              <div className="text-sm text-foreground bg-muted/50 rounded-lg p-3">{selected.message}</div>
             )}
 
-            <hr className="border-gray-100" />
+            <hr className="border-border" />
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Statut</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Statut</label>
               <select value={status} onChange={(e) => setStatus(e.target.value as Status)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                 {(Object.keys(STATUS) as Status[]).map((s) => (
                   <option key={s} value={s}>{STATUS[s].label}</option>
                 ))}
@@ -345,19 +345,19 @@ export default function Preorders() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Note interne</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Note interne</label>
               <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)}
                 placeholder="Note visible uniquement en interne…"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
+                className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
             </div>
 
             <div className="flex gap-3 pt-1">
               <button onClick={() => setSelected(null)}
-                className="flex-1 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                className="flex-1 py-2 text-sm text-foreground border border-border rounded-lg hover:bg-accent transition-colors">
                 Fermer
               </button>
               <button onClick={save} disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Enregistrer
               </button>

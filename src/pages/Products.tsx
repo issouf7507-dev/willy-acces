@@ -17,6 +17,8 @@ import { useSeo } from '../lib/seo'
 
 const PAGE_SIZE = 12
 
+type Mode = 'shop' | 'preorder'
+
 interface CategoryTab {
   id: string
   label: string
@@ -39,6 +41,9 @@ export default function Products() {
   const [searchParams, setSearchParams] = useSearchParams()
   // `|| 'all'` et pas `??` : un `?category=` vide doit retomber sur "Tous".
   const activeCategory = searchParams.get('category') || 'all'
+  // Boutique / Précommandes : deux catalogues distincts sur la même page.
+  // `?mode=preorder` garde l'onglet partageable, comme `?category` et `?q`.
+  const mode: Mode = searchParams.get('mode') === 'preorder' ? 'preorder' : 'shop'
   const [sortBy, setSortBy] = useState('featured')
   // La recherche vit dans l'URL (`?q=`), comme la catégorie : la recherche du
   // header peut donc renvoyer ici, et le lien reste partageable.
@@ -52,6 +57,15 @@ export default function Products() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Un produit en précommande n'appartient qu'à l'onglet « Précommandes » :
+  // mélangé au catalogue, il donnait un prix et un délai qui ne s'appliquent pas.
+  const scoped = useMemo(
+    () => products.filter(p => (mode === 'preorder' ? p.isPreorder : !p.isPreorder)),
+    [products, mode]
+  )
+  const preorderCount = useMemo(() => products.filter(p => p.isPreorder).length, [products])
+  const shopCount = products.length - preorderCount
+
   // Onglets = catégories racines du back-office (on masque celles sans produit).
   // Le compte inclut les sous-catégories, sinon « Accessoires » afficherait 1
   // alors que ses 17 produits vivent dans ses enfants.
@@ -60,18 +74,18 @@ export default function Products() {
       .map(c => ({
         id: c.slug,
         label: c.name,
-        count: countInCategory(categories, c.slug, products),
+        count: countInCategory(categories, c.slug, scoped),
       }))
       .filter(c => c.count > 0)
-    return [{ id: 'all', label: 'Tous', count: products.length }, ...tabs]
-  }, [categories, products])
+    return [{ id: 'all', label: 'Tous', count: scoped.length }, ...tabs]
+  }, [categories, scoped])
 
   const filtered = useMemo(() => {
     // Filtrer sur une racine doit ramener aussi les produits de ses enfants.
-    let result = products
+    let result = scoped
     if (activeCategory !== 'all') {
       const covered = new Set(categorySlugsWithDescendants(categories, activeCategory))
-      result = products.filter(p => p.categorySlug && covered.has(p.categorySlug))
+      result = scoped.filter(p => p.categorySlug && covered.has(p.categorySlug))
     }
 
     if (search.trim()) {
@@ -87,9 +101,17 @@ export default function Products() {
       case 'price-desc': result = [...result].sort((a, b) => b.price - a.price); break
       case 'rating':     result = [...result].sort((a, b) => b.rating - a.rating); break
       case 'reviews':    result = [...result].sort((a, b) => b.reviews - a.reviews); break
+      // « En vedette » n'a pas de sens pour une précommande : la sortie la plus
+      // proche passe devant, comme sur la page /collections/produits-a-venir.
+      default:
+        if (mode === 'preorder') {
+          result = [...result].sort(
+            (a, b) => +new Date(a.releaseDate ?? 0) - +new Date(b.releaseDate ?? 0)
+          )
+        }
     }
     return result
-  }, [products, categories, activeCategory, sortBy, search])
+  }, [scoped, categories, activeCategory, sortBy, search, mode])
 
   const displayed = filtered.slice(0, page * PAGE_SIZE)
   const hasMore = displayed.length < filtered.length
@@ -99,6 +121,17 @@ export default function Products() {
     if (value) next.set('q', value)
     else next.delete('q')
     setSearchParams(next, { replace: true })
+    setPage(1)
+  }
+
+  const handleModeChange = (next: Mode) => {
+    const params = new URLSearchParams(searchParams)
+    if (next === 'preorder') params.set('mode', 'preorder')
+    else params.delete('mode')
+    // La catégorie active n'existe pas forcément dans l'autre catalogue : la
+    // garder afficherait une grille vide au lieu du nouvel onglet.
+    params.delete('category')
+    setSearchParams(params, { replace: true })
     setPage(1)
   }
 
@@ -120,13 +153,20 @@ export default function Products() {
       {/* Hero */}
       <section className="bg-black text-white overflow-hidden relative">
         <div className="max-w-[1600px] mx-auto px-5 md:px-12 py-16 md:py-24">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-4">Boutique</p>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-400 mb-4">
+            {mode === 'preorder' ? 'Bientôt disponible' : 'Boutique'}
+          </p>
           <h1 className="text-5xl md:text-7xl font-black uppercase leading-none mb-4">
-            Tous les<br />
-            <span className="text-zinc-400">produits</span>
+            {mode === 'preorder' ? (
+              <>Produits<br /><span className="text-zinc-400">à venir</span></>
+            ) : (
+              <>Tous les<br /><span className="text-zinc-400">produits</span></>
+            )}
           </h1>
           <p className="text-sm text-zinc-400 max-w-sm mt-6">
-            {products.length} articles — sacs, slings, messagers et accessoires pour le quotidien.
+            {mode === 'preorder'
+              ? `${scoped.length} produits à venir — réservez le vôtre, livré dès sa sortie.`
+              : `${scoped.length} articles — sacs, slings, messagers et accessoires pour le quotidien.`}
           </p>
         </div>
         {/* Decorative gradient circles */}
@@ -136,6 +176,32 @@ export default function Products() {
 
       {/* Main catalog */}
       <section className="max-w-[1600px] mx-auto px-5 md:px-12 py-10">
+
+        {/* Boutique / Précommandes — masqué tant qu'aucune précommande n'est ouverte */}
+        {(preorderCount > 0 || mode === 'preorder') && (
+          <div className="inline-flex border-2 border-black mb-6">
+            {([
+              { id: 'shop' as Mode, label: 'Boutique', count: shopCount },
+              { id: 'preorder' as Mode, label: 'Précommandes', count: preorderCount },
+            ]).map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => handleModeChange(tab.id)}
+                aria-pressed={mode === tab.id}
+                className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors ${
+                  mode === tab.id
+                    ? 'bg-black text-white'
+                    : 'bg-white text-zinc-500 hover:text-black'
+                }`}
+              >
+                {tab.label}
+                <span className={`ml-1.5 text-[10px] ${mode === tab.id ? 'text-zinc-400' : 'text-zinc-300'}`}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Search + Sort row */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -189,7 +255,7 @@ export default function Products() {
             >
               {cat.label}
               <span className={`ml-1.5 text-[10px] ${activeCategory === cat.id ? 'text-zinc-500' : 'text-zinc-300'}`}>
-                {cat.id === 'all' ? products.length : cat.count}
+                {cat.count}
               </span>
             </button>
           ))}
@@ -209,7 +275,11 @@ export default function Products() {
             </div>
             <p className="text-zinc-400 font-medium mb-2">Aucun produit trouvé</p>
             <button
-              onClick={() => { setSearchParams({}, { replace: true }); setPage(1) }}
+              onClick={() => {
+                // On vide recherche et catégorie mais on reste sur l'onglet courant.
+                setSearchParams(mode === 'preorder' ? { mode: 'preorder' } : {}, { replace: true })
+                setPage(1)
+              }}
               className="text-xs font-bold uppercase tracking-wide underline text-zinc-500 hover:text-black transition-colors"
             >
               Réinitialiser

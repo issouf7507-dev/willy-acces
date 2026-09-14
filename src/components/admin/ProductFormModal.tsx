@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, type FormEvent, type MouseEvent, type DragEvent } from 'react'
 import { api } from '../../lib/api'
+import { useAuth } from '../../context/AuthContext'
 import { useEdgeStore } from '../../lib/edgestore'
 import { X, Loader2, Upload, Trash2, ImagePlus } from 'lucide-react'
 
 interface Category { id: string; name: string; parentId?: string | null; sortOrder?: number }
+interface StoreOption { id: string; name: string }
 interface Product {
   id: string; name: string; slug?: string; price: number | string
   /** Prix normal brut. `price` porte le tarif du moment (promo/précommande) : le
@@ -118,6 +120,8 @@ function skuPreview(categoryName?: string): string {
 export default function ProductFormModal({ product, onClose, onSaved }: Props) {
   const isNew = !product
   const [categories, setCategories] = useState<Category[]>([])
+  const [stores, setStores] = useState<StoreOption[]>([])
+  const { user: me } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [images, setImages] = useState<ImageEntry[]>(
@@ -138,6 +142,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
     promoStartsAt: toDateInput(product?.promoStartsAt),
     promoEndsAt: toDateInput(product?.promoEndsAt),
     stock: String(product?.stock ?? '0'),
+    /** Boutique où se trouve le stock saisi. Exigée seulement s'il change. */
+    stockStoreId: '',
     sku: product?.sku ?? '',
     categoryId: product?.categoryId ?? '',
     isActive: product?.isActive ?? true,
@@ -154,10 +160,29 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
 
   useEffect(() => {
     api.get<Category[]>('/categories').then(setCategories).catch(() => null)
-  }, [])
+    api.get<StoreOption[]>('/gestion/stores')
+      .then((list) => {
+        // Une vendeuse ne range du stock que dans sa boutique : lui en proposer
+        // d'autres ne mènerait qu'à un refus du serveur.
+        const mine = me?.role === 'VENDEUR' && me.storeId
+          ? list.filter((s) => s.id === me.storeId)
+          : list
+        setStores(mine)
+        if (mine.length === 1) setForm((f) => ({ ...f, stockStoreId: mine[0].id }))
+      })
+      .catch(() => null)
+  }, [me?.role, me?.storeId])
 
   const set = (k: keyof typeof form, v: string | boolean) =>
     setForm((f) => ({ ...f, [k]: v }))
+
+  /**
+   * Le stock d'un produit existant est réparti entre les boutiques : le
+   * modifier ici déplace une quantité quelque part, et il faut savoir où. À la
+   * création, tout stock saisi est un stock à ranger.
+   */
+  const initialStock = product ? product.stock : null
+  const stockChanged = (Number(form.stock) || 0) !== (initialStock ?? 0)
 
   async function uploadFiles(files: File[]) {
     const startIdx = images.length
@@ -244,6 +269,9 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         promoStartsAt: hasPromo ? dayBoundaryISO(form.promoStartsAt, 'start') ?? null : null,
         promoEndsAt: hasPromo ? dayBoundaryISO(form.promoEndsAt, 'end') : null,
         stock: Number(form.stock) || 0,
+        // Le serveur ne la réclame que si le stock bouge : l'envoyer à vide
+        // pour un simple changement de prix n'a pas de sens.
+        stockStoreId: stockChanged ? form.stockStoreId : undefined,
         sku: form.sku || undefined,
         categoryId: form.categoryId || undefined,
         isActive: form.isActive,
@@ -313,12 +341,12 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">{isNew ? 'Nouveau produit' : 'Modifier le produit'}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="font-semibold text-foreground">{isNew ? 'Nouveau produit' : 'Modifier le produit'}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-accent transition-colors">
+            <X className="w-5 h-5 text-muted-foreground" />
           </button>
         </div>
 
@@ -337,7 +365,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
           <Field label="Lien TikTok">
             <input type="url" value={form.tiktokUrl} onChange={(e) => set('tiktokUrl', e.target.value)}
               className={input} placeholder="https://www.tiktok.com/@willy/video/…" />
-            <p className="text-xs text-gray-400 mt-1.5">
+            <p className="text-xs text-muted-foreground mt-1.5">
               Facultatif. S'il y a une vidéo du produit, collez son lien : un bouton « Voir la
               vidéo » apparaît sur la fiche produit.
             </p>
@@ -355,8 +383,8 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
           </div>
 
           {hasPromo && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-              <p className="text-sm font-medium text-gray-700">Période de la promotion</p>
+            <div className="rounded-xl border border-border bg-muted/50 p-4 space-y-3">
+              <p className="text-sm font-medium text-foreground">Période de la promotion</p>
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Début">
@@ -369,7 +397,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
                 </Field>
               </div>
 
-              <p className="text-xs text-gray-500">{promoSummary}</p>
+              <p className="text-xs text-muted-foreground">{promoSummary}</p>
             </div>
           )}
 
@@ -377,13 +405,31 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             <Field label="Stock">
               <input type="number" min="0" step="1" value={form.stock}
                 onChange={(e) => set('stock', e.target.value)} className={input} />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Le stock arrive normalement par un arrivage. Saisi ici, il faut dire où il est.
+              </p>
             </Field>
             <Field label="SKU">
               <input value={form.sku} onChange={(e) => set('sku', e.target.value)}
                 className={input} placeholder={skuPlaceholder} />
-              <p className="mt-1 text-xs text-gray-400">Laissez vide : généré automatiquement.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Laissez vide : généré automatiquement.</p>
             </Field>
           </div>
+
+          {stockChanged && (
+            <Field label="Boutique de ce stock">
+              <select value={form.stockStoreId} onChange={(e) => set('stockStoreId', e.target.value)}
+                className={input}>
+                <option value="">Choisir…</option>
+                {stores.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {initialStock === null
+                  ? 'Où se trouvent ces articles ? La caisse ne peut vendre que le stock d’une boutique.'
+                  : `Écart de ${Number(form.stock) - initialStock > 0 ? '+' : ''}${Number(form.stock) - initialStock} à porter sur cette boutique.`}
+              </p>
+            </Field>
+          )}
 
           <Field label="Catégorie">
             <select value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)} className={input}>
@@ -402,14 +448,14 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
               onDrop={onDrop}
               onClick={() => fileInputRef.current?.click()}
               className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-5 cursor-pointer transition-colors ${
-                dragging ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+                dragging ? 'border-primary bg-muted/50' : 'border-border hover:border-ring/40 hover:bg-accent'
               }`}
             >
-              <ImagePlus className="w-7 h-7 text-gray-400" />
-              <p className="text-sm text-gray-500">
-                Glissez des images ici ou <span className="font-medium text-gray-800">parcourir</span>
+              <ImagePlus className="w-7 h-7 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Glissez des images ici ou <span className="font-medium text-foreground">parcourir</span>
               </p>
-              <p className="text-xs text-gray-400">PNG, JPG, WEBP — max 10 Mo par image</p>
+              <p className="text-xs text-muted-foreground">PNG, JPG, WEBP — max 10 Mo par image</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -423,7 +469,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             {images.length > 0 && (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {images.map((img, i) => (
-                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 group">
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50 group">
                     <img src={img.url} alt={img.alt} className="w-full h-full object-cover" />
 
                     {img.uploading && (
@@ -462,13 +508,13 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
 
           {/* Référencement : ce que Google affiche. Vide = le nom et la
               description du produit servent de repli côté boutique. */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-            <p className="text-sm font-medium text-gray-700">Référencement (Google)</p>
+          <div className="rounded-xl border border-border bg-muted/50 p-4 space-y-3">
+            <p className="text-sm font-medium text-foreground">Référencement (Google)</p>
 
             <Field label="Titre SEO">
               <input value={form.seoTitle} onChange={(e) => set('seoTitle', e.target.value)}
                 className={input} placeholder={form.name || 'Nom du produit'} maxLength={70} />
-              <p className="text-xs text-gray-400 mt-1.5">{form.seoTitle.length}/70 caractères</p>
+              <p className="text-xs text-muted-foreground mt-1.5">{form.seoTitle.length}/70 caractères</p>
             </Field>
 
             <Field label="Description SEO">
@@ -476,7 +522,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
                 onChange={(e) => set('seoDescription', e.target.value)}
                 className={`${input} resize-none`} maxLength={160}
                 placeholder="Phrase affichée sous le titre dans les résultats de recherche" />
-              <p className="text-xs text-gray-400 mt-1.5">{form.seoDescription.length}/160 caractères</p>
+              <p className="text-xs text-muted-foreground mt-1.5">{form.seoDescription.length}/160 caractères</p>
             </Field>
           </div>
 
@@ -484,32 +530,32 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isActive}
                 onChange={(e) => set('isActive', e.target.checked)}
-                className="w-4 h-4 rounded accent-gray-900" />
-              <span className="text-sm text-gray-700">Actif</span>
+                className="w-4 h-4 rounded accent-primary" />
+              <span className="text-sm text-foreground">Actif</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isFeatured}
                 onChange={(e) => set('isFeatured', e.target.checked)}
-                className="w-4 h-4 rounded accent-gray-900" />
-              <span className="text-sm text-gray-700">Mis en avant</span>
+                className="w-4 h-4 rounded accent-primary" />
+              <span className="text-sm text-foreground">Mis en avant</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isNew}
                 onChange={(e) => set('isNew', e.target.checked)}
-                className="w-4 h-4 rounded accent-gray-900" />
-              <span className="text-sm text-gray-700">Nouveau</span>
+                className="w-4 h-4 rounded accent-primary" />
+              <span className="text-sm text-foreground">Nouveau</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isPreorder}
                 onChange={(e) => set('isPreorder', e.target.checked)}
-                className="w-4 h-4 rounded accent-gray-900" />
-              <span className="text-sm text-gray-700">Précommande</span>
+                className="w-4 h-4 rounded accent-primary" />
+              <span className="text-sm text-foreground">Précommande</span>
             </label>
           </div>
 
           {form.isPreorder && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-              <p className="text-sm font-medium text-gray-700">Période de précommande</p>
+            <div className="rounded-xl border border-border bg-muted/50 p-4 space-y-3">
+              <p className="text-sm font-medium text-foreground">Période de précommande</p>
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Ouverture">
@@ -527,12 +573,12 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
                 <input type="number" min="0" step="1" value={form.preorderPrice}
                   onChange={(e) => set('preorderPrice', e.target.value)} className={input}
                   placeholder={form.price || '20000'} />
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Laissez vide pour vendre au prix normal pendant la précommande.
                 </p>
               </Field>
 
-              <p className="text-xs text-gray-500">{preorderSummary}</p>
+              <p className="text-xs text-muted-foreground">{preorderSummary}</p>
             </div>
           )}
 
@@ -542,9 +588,9 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
           <button type="button" onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+            className="px-4 py-2 text-sm text-foreground hover:bg-accent rounded-lg transition-colors">
             Annuler
           </button>
           {/* Le bouton est hors du <form> (footer figé) : l'attribut `form` le
@@ -554,7 +600,7 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
             type="submit"
             form="product-form"
             disabled={loading || hasUploading}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             {(loading || hasUploading) && <Loader2 className="w-4 h-4 animate-spin" />}
             {hasUploading ? 'Téléchargement…' : isNew ? 'Créer' : 'Enregistrer'}
@@ -568,10 +614,10 @@ export default function ProductFormModal({ product, onClose, onSaved }: Props) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-foreground mb-1.5">{label}</label>
       {children}
     </div>
   )
 }
 
-const input = 'w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition'
+const input = 'w-full px-3.5 py-2.5 rounded-lg border border-border text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition'

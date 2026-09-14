@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BarChart, Bar, LineChart, Line, XAxis } from 'recharts'
 import {
-  BarChart, Bar, LineChart, Line, XAxis, ResponsiveContainer,
-  Tooltip, CartesianGrid,
-} from 'recharts'
-import {
-  TrendingUp, TrendingDown, ShoppingBag, Package,
-  Clock, ArrowRight, Download, Users,
-} from 'lucide-react'
+  ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
+} from '@/components/ui/chart'
+import { ArrowRight, Clock, Store as StoreIcon } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { StatCard, HeroCard, CardShell } from '@/components/admin/stat-card'
+import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 /* ─── Types ────────────────────────────────────────────────── */
@@ -25,9 +23,22 @@ interface Order {
   customerName: string | null
 }
 
-interface StatsData {
+interface OrdersPage {
   items: Order[]
   meta: { total: number }
+}
+
+/**
+ * Chiffres du back-office, tous calculés en base. `revenue` n'est renseigné que
+ * pour un super administrateur : c'est la même règle que dans la Gestion, où
+ * recettes et bénéfice ne sortent pas de ce rôle.
+ */
+interface Stats {
+  totalOrders: number
+  pendingOrders: number
+  monthly: { month: string; orders: number; revenue?: number }[]
+  byStore: { id: string; name: string; orders: number; revenue?: number }[]
+  withRevenue: boolean
 }
 
 /* ─── Constantes ────────────────────────────────────────────── */
@@ -41,23 +52,6 @@ const STATUS_BADGE: Record<string, { variant: 'success' | 'warning' | 'info' | '
   REFUNDED:   { variant: 'secondary',   label: 'Remboursée' },
 }
 
-const MONTHLY_DATA = [
-  { mois: 'Jan', commandes: 18, ca: 2100000 },
-  { mois: 'Fév', commandes: 24, ca: 3200000 },
-  { mois: 'Mar', commandes: 31, ca: 4100000 },
-  { mois: 'Avr', commandes: 22, ca: 2800000 },
-  { mois: 'Mai', commandes: 28, ca: 3600000 },
-  { mois: 'Jun', commandes: 35, ca: 4800000 },
-]
-
-const LOCATION_DATA = [
-  { pays: 'Abidjan',    pct: 72, trend: '+8.2%', up: true },
-  { pays: 'Bouaké',     pct: 55, trend: '+4.1%', up: true },
-  { pays: 'Yamoussoukro', pct: 38, trend: '-1.3%', up: false },
-  { pays: 'San Pedro',  pct: 29, trend: '+2.7%', up: true },
-  { pays: 'Korhogo',    pct: 18, trend: '+0.9%', up: true },
-]
-
 /* ─── Helpers ───────────────────────────────────────────────── */
 const fmt = (n: number) => new Intl.NumberFormat('fr-FR').format(n) + ' FCFA'
 const fmtShort = (n: number) => {
@@ -68,64 +62,61 @@ const fmtShort = (n: number) => {
 const fmtDate = (d: string) =>
   new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(d))
 
-/* ─── Sub-components ────────────────────────────────────────── */
-function KpiCard({ icon: Icon, label, value, trend, trendUp, sub, iconBg }: {
-  icon: React.ElementType
-  label: string
-  value: string | number
-  trend?: string
-  trendUp?: boolean
-  sub?: string
-  iconBg: string
-}) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', iconBg)}>
-            <Icon className="w-5 h-5" />
-          </div>
-          {trend && (
-            <span className={cn('flex items-center gap-0.5 text-xs font-semibold', trendUp ? 'text-emerald-600' : 'text-red-500')}>
-              {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-              {trend}
-            </span>
-          )}
-        </div>
-        <div className="mt-4">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold mt-0.5">{value}</p>
-          {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-        </div>
-      </CardContent>
-    </Card>
-  )
+/** « 2026-09 » → « sept. ». */
+const monthLabel = (m: string) => {
+  const [y, mo] = m.split('-').map(Number)
+  return new Intl.DateTimeFormat('fr-FR', { month: 'short' }).format(new Date(y, mo - 1, 1))
 }
+
+/**
+ * Évolution d'un mois sur l'autre, en pourcentage. `null` quand le mois
+ * précédent est à zéro : une variation depuis rien ne veut rien dire, et on
+ * préfère ne rien afficher qu'un « +100 % » trompeur.
+ */
+function growth(current: number, previous: number): number | null {
+  if (previous === 0) return null
+  return Math.round(((current - previous) / previous) * 100)
+}
+
+/**
+ * Libellé et couleur de chaque série. `ChartContainer` s'en sert pour teinter
+ * les marques et pour nommer les valeurs dans l'infobulle — plus de couleur
+ * écrite en dur dans le JSX, donc un rendu juste dans les deux thèmes.
+ */
+/**
+ * Séries des graphiques. `ChartContainer` s'en sert pour teinter les marques et
+ * nommer les valeurs dans l'infobulle : plus aucune couleur écrite dans le JSX,
+ * donc un rendu juste dans les deux thèmes.
+ */
+const ORDERS_CHART = {
+  orders: { label: 'Commandes', color: 'var(--chart-3)' },
+} satisfies ChartConfig
+
+const REVENUE_CHART = {
+  revenue: { label: 'Recette', color: 'var(--chart-1)' },
+} satisfies ChartConfig
 
 /* ─── Page ───────────────────────────────────────────────────── */
 export default function Dashboard() {
   const { user } = useAuth()
-  const [orders, setOrders]           = useState<Order[]>([])
-  const [totalOrders, setTotalOrders] = useState(0)
+  const [orders, setOrders] = useState<Order[]>([])
   const [totalProducts, setTotalProducts] = useState(0)
-  const [revenue, setRevenue]         = useState(0)
-  const [loading, setLoading]         = useState(true)
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
-      api.get<StatsData>('/orders?limit=8&sortOrder=desc'),
+      api.get<OrdersPage>('/orders?limit=8&sortOrder=desc'),
       api.get<{ meta: { total: number } }>('/products?limit=1'),
+      api.get<Stats>('/orders/stats'),
     ])
-      .then(([ordersData, productsData]) => {
+      .then(([ordersData, productsData, statsData]) => {
         setOrders(ordersData.items)
-        setTotalOrders(ordersData.meta.total)
         setTotalProducts(productsData.meta.total)
-        setRevenue(ordersData.items.reduce((acc, o) => acc + Number(o.total), 0))
+        setStats(statsData)
       })
       .finally(() => setLoading(false))
   }, [])
-
-  const pendingCount = orders.filter(o => o.status === 'PENDING').length
 
   if (loading) {
     return (
@@ -135,169 +126,195 @@ export default function Dashboard() {
     )
   }
 
+  const monthly = stats?.monthly ?? []
+  const thisMonth = monthly[monthly.length - 1]
+  const lastMonth = monthly[monthly.length - 2]
+
+  const ordersTrend = thisMonth && lastMonth ? growth(thisMonth.orders, lastMonth.orders) : null
+  const revenueTrend =
+    stats?.withRevenue && thisMonth && lastMonth
+      ? growth(thisMonth.revenue ?? 0, lastMonth.revenue ?? 0)
+      : null
+
+  /*
+   * Un tableau par graphique, et non un seul partagé : sans axe Y déclaré,
+   * Recharts calcule le domaine à partir de **toutes** les valeurs numériques
+   * des données. Mélanger `orders` (1 à 14) et `revenue` (jusqu'à 300 000)
+   * écrasait les barres de commandes au ras de l'axe.
+   */
+  const ordersData = monthly.map((m) => ({ label: monthLabel(m.month), orders: m.orders }))
+  const revenueData = monthly.map((m) => ({ label: monthLabel(m.month), revenue: m.revenue ?? 0 }))
+  const monthName = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' })
+    .format(new Date())
+  const storeMax = Math.max(1, ...(stats?.byStore.map((s) => s.orders) ?? [1]))
+  const activeStores = stats?.byStore.filter((s) => s.orders > 0) ?? []
+
   return (
     <div className="space-y-6 p-6 lg:p-8">
 
       {/* ── En-tête ──────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
-          </p>
-        </div>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Download className="h-4 w-4" />
-          <span className="hidden sm:inline">Exporter</span>
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Bonjour {user?.name?.split(' ')[0]}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          {new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
+        </p>
       </div>
 
-      {/* ── Hero + 3 mini KPI ────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-12">
-
-        {/* Hero card */}
-        <Card className="lg:col-span-4 bg-muted border-0 relative overflow-hidden">
-          <CardContent className="p-6">
-            <p className="text-xl font-bold">Félicitations {user?.name?.split(' ')[0]} ! 🎉</p>
-            <p className="text-sm text-muted-foreground mt-1">Meilleure boutique du mois</p>
-            <div className="mt-6 flex items-end justify-between">
-              <div>
-                <p className="text-3xl font-bold">{fmtShort(revenue)}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  <span className="text-emerald-600 font-semibold">+12%</span> vs mois dernier
-                </p>
-              </div>
+      {/* ── Rangée de tête ───────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-12 lg:gap-6">
+        {/*
+          Le chiffre de tête dépend du rôle : la recette pour un super
+          administrateur, le nombre de commandes pour les autres, qui n'ont pas
+          accès aux montants.
+        */}
+        {stats?.withRevenue ? (
+          <HeroCard
+            className="md:col-span-12 lg:col-span-4"
+            title="Recette ce mois"
+            subtitle={monthName}
+            value={fmtShort(thisMonth?.revenue ?? 0)}
+            hint={
+              lastMonth ? (
+                <>
+                  {revenueTrend !== null && (
+                    <span className={revenueTrend >= 0 ? 'text-success' : 'text-destructive'}>
+                      {revenueTrend >= 0 ? '+' : ''}{revenueTrend}%
+                    </span>
+                  )}{' '}
+                  vs {fmtShort(lastMonth.revenue ?? 0)} le mois dernier
+                </>
+              ) : undefined
+            }
+            action={
+              <Link
+                to="/admin/gestion/sales"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                Voir les ventes
+              </Link>
+            }
+          />
+        ) : (
+          <HeroCard
+            className="md:col-span-12 lg:col-span-4"
+            title="Commandes ce mois"
+            subtitle={monthName}
+            value={String(thisMonth?.orders ?? 0)}
+            hint={lastMonth ? `${lastMonth.orders} le mois dernier` : undefined}
+            action={
               <Link to="/admin/orders" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                Voir commandes
+                Voir les commandes
               </Link>
-            </div>
-          </CardContent>
-          {/* Décoratif */}
-          <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-primary/5" />
-          <div className="pointer-events-none absolute -right-2 -bottom-8 h-28 w-28 rounded-full bg-primary/5" />
-        </Card>
+            }
+          />
+        )}
 
-        {/* 3 mini-KPI */}
-        <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-start justify-between">
-                <p className="text-xs text-muted-foreground">Chiffre d'affaires</p>
-                <span className="text-xs font-semibold text-emerald-600">+6.1%</span>
-              </div>
-              <p className="text-2xl font-bold">{fmtShort(revenue)}</p>
-              <Link to="/admin/orders" className="text-xs text-primary flex items-center gap-1 hover:underline">
-                Voir plus <ArrowRight className="w-3 h-3" />
-              </Link>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-start justify-between">
-                <p className="text-xs text-muted-foreground">Commandes</p>
-                <span className="text-xs font-semibold text-emerald-600">+19.2%</span>
-              </div>
-              <p className="text-2xl font-bold">{totalOrders.toLocaleString('fr-FR')}</p>
-              <Link to="/admin/orders" className="text-xs text-primary flex items-center gap-1 hover:underline">
-                Voir plus <ArrowRight className="w-3 h-3" />
-              </Link>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-start justify-between">
-                <p className="text-xs text-muted-foreground">Croissance produits</p>
-                <span className="text-xs font-semibold text-red-500">-1.2%</span>
-              </div>
-              <p className="text-2xl font-bold">{totalProducts.toLocaleString('fr-FR')}</p>
-              <Link to="/admin/products" className="text-xs text-primary flex items-center gap-1 hover:underline">
-                Voir plus <ArrowRight className="w-3 h-3" />
-              </Link>
-            </CardContent>
-          </Card>
+        <div className="md:col-span-12 lg:col-span-8">
+          <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6">
+            <StatCard
+              label="Commandes ce mois"
+              value={thisMonth?.orders ?? 0}
+              trend={ordersTrend}
+              hint={lastMonth ? `${lastMonth.orders} le mois dernier` : undefined}
+              to="/admin/orders"
+            />
+            <StatCard
+              label="En attente"
+              value={stats?.pendingOrders ?? 0}
+              hint="à traiter"
+              tone={(stats?.pendingOrders ?? 0) > 0 ? 'warning' : 'default'}
+              to="/admin/orders"
+            />
+            <StatCard
+              label="Produits au catalogue"
+              value={totalProducts.toLocaleString('fr-FR')}
+              hint={`${(stats?.totalOrders ?? 0).toLocaleString('fr-FR')} commandes au total`}
+              to="/admin/products"
+            />
+          </div>
         </div>
-      </div>
-
-      {/* ── 4 KPI cards ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <KpiCard icon={TrendingUp}  label="Revenus (8 dernières)"  value={fmtShort(revenue)}  trend="+12%"  trendUp  iconBg="bg-emerald-100 text-emerald-700" />
-        <KpiCard icon={ShoppingBag} label="Total commandes"         value={totalOrders}          trend="+8%"   trendUp  iconBg="bg-blue-100 text-blue-700" />
-        <KpiCard icon={Package}     label="Produits"                value={totalProducts}        trend="+3%"   trendUp  iconBg="bg-purple-100 text-purple-700" />
-        <KpiCard icon={Users}       label="En attente"              value={pendingCount}          sub="à traiter"        iconBg="bg-yellow-100 text-yellow-700" />
       </div>
 
       {/* ── Graphiques ───────────────────────────────────────── */}
-      <div className="grid gap-4 xl:grid-cols-2">
-
-        {/* Bar chart – Commandes mensuelles */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="text-base">Commandes mensuelles</CardTitle>
-                <CardDescription>6 derniers mois</CardDescription>
+      <div
+        className={cn(
+          'space-y-4 lg:space-y-6',
+          stats?.withRevenue && 'xl:grid xl:grid-cols-2 xl:gap-6 xl:space-y-0',
+        )}
+      >
+        <CardShell
+          title="Commandes par mois"
+          action={
+            <div className="flex items-center gap-6">
+              <div className="flex items-baseline gap-2">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
+                <span className="text-lg leading-none tabular-nums">
+                  {monthly.reduce((a, d) => a + d.orders, 0)}
+                </span>
               </div>
-              <div className="flex gap-6 rounded-lg border p-3 text-sm">
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Total</span>
-                  <span className="font-semibold">{MONTHLY_DATA.reduce((a, d) => a + d.commandes, 0)}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Moy.</span>
-                  <span className="font-semibold">{Math.round(MONTHLY_DATA.reduce((a, d) => a + d.commandes, 0) / MONTHLY_DATA.length)}</span>
-                </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">Moy.</span>
+                <span className="text-lg leading-none tabular-nums">
+                  {Math.round(monthly.reduce((a, d) => a + d.orders, 0) / Math.max(1, monthly.length))}
+                </span>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={MONTHLY_DATA} barSize={28}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="mois" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
-                  formatter={(v) => [`${Number(v)} commandes`, '']}
-                />
-                <Bar dataKey="commandes" fill="oklch(0.205 0 0)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          }
+        >
+          <ChartContainer config={ORDERS_CHART} className="aspect-[21/9] w-full lg:h-[300px]">
+            <BarChart data={ordersData}>
+              <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
+              <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator />} />
+              <Bar dataKey="orders" fill="var(--color-orders)" radius={8} />
+            </BarChart>
+          </ChartContainer>
+        </CardShell>
 
-        {/* Line chart – CA mensuel */}
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle className="text-base">Chiffre d'affaires</CardTitle>
-                <CardDescription>Évolution sur 6 mois</CardDescription>
-              </div>
+        {/* Les montants ne sortent pas du super administrateur. */}
+        {stats?.withRevenue && (
+          <CardShell
+            description="Recette par mois"
+            headerBelow={
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold">{fmtShort(MONTHLY_DATA.reduce((a, d) => a + d.ca, 0))}</span>
-                <Badge variant="success">+2.5%</Badge>
+                <div className="text-2xl font-semibold tabular-nums">
+                  {fmtShort(monthly.reduce((a, d) => a + (d.revenue ?? 0), 0))}
+                </div>
+                {revenueTrend !== null && (
+                  <Badge
+                    variant="outline"
+                    className={cn('rounded-full', revenueTrend >= 0 ? 'text-success' : 'text-destructive')}
+                  >
+                    {revenueTrend >= 0 ? '+' : ''}{revenueTrend}%
+                  </Badge>
+                )}
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={MONTHLY_DATA}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="mois" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
-                  formatter={(v) => [fmtShort(Number(v)), 'CA']}
+            }
+          >
+            <ChartContainer config={REVENUE_CHART} className="aspect-[21/9] w-full lg:h-[300px]">
+              <LineChart data={revenueData}>
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip
+                  content={<ChartTooltipContent formatter={(v) => fmtShort(Number(v))} />}
                 />
-                <Line type="monotone" dataKey="ca" stroke="oklch(0.205 0 0)" strokeWidth={2} dot={false} />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="var(--color-revenue)"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
               </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            </ChartContainer>
+          </CardShell>
+        )}
       </div>
 
-      {/* ── Commandes récentes + Ventes par ville ─────────────── */}
+      {/* ── Dernières commandes + répartition par boutique ────── */}
       <div className="grid gap-4 lg:grid-cols-12">
 
-        {/* Tableau commandes */}
         <Card className="lg:col-span-7">
           <CardHeader className="flex-row items-center justify-between pb-3">
             <CardTitle className="text-base">Dernières commandes</CardTitle>
@@ -358,32 +375,36 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Ventes par ville */}
         <Card className="lg:col-span-5">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Ventes par ville</CardTitle>
-            <CardDescription>Répartition géographique</CardDescription>
+            <CardTitle className="text-base">Commandes par boutique</CardTitle>
+            <CardDescription>6 derniers mois</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            {LOCATION_DATA.map((item) => (
-              <div key={item.pays} className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{item.pays}</span>
-                    <span className={cn('text-xs font-semibold', item.up ? 'text-emerald-600' : 'text-red-500')}>
-                      {item.trend}
+            {activeStores.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucune commande rattachée à une boutique sur la période.
+              </p>
+            ) : (
+              activeStores.map((s) => (
+                <div key={s.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 font-medium">
+                      <StoreIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                      {s.name}
+                    </span>
+                    <span className="text-muted-foreground text-xs tabular-nums">
+                      {s.orders} commande{s.orders > 1 ? 's' : ''}
+                      {stats?.withRevenue && ` · ${fmtShort(s.revenue ?? 0)}`}
                     </span>
                   </div>
-                  <span className="text-muted-foreground text-xs">{item.pct}%</span>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary transition-all"
+                      style={{ width: `${Math.round((s.orders / storeMax) * 100)}%` }} />
+                  </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all"
-                    style={{ width: `${item.pct}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
       </div>

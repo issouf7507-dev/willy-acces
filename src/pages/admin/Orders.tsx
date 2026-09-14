@@ -1,6 +1,18 @@
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '../../lib/api'
-import { Search, Loader2, ShoppingBag, ChevronDown } from 'lucide-react'
+import {
+  Search, Loader2, ShoppingBag, ChevronDown, ChevronLeft, ChevronRight,
+} from 'lucide-react'
+import { PageHeader } from '@/components/admin/page-header'
+import { DataTable, type Column } from '@/components/admin/data-table'
+import { Segmented } from '@/components/admin/segmented'
+import { StatusBadge } from '@/components/admin/status-badge'
+import { Input, Select } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 
 interface Order {
   id: string; orderNumber: string; total: number | string; status: string
@@ -23,32 +35,29 @@ const STATUSES = [
   { value: 'CANCELLED',  label: 'Annulée' },
 ]
 
-const STATUS_COLORS: Record<string, string> = {
-  PENDING:    'bg-yellow-100 text-yellow-800',
-  CONFIRMED:  'bg-blue-100 text-blue-800',
-  PROCESSING: 'bg-purple-100 text-purple-800',
-  SHIPPED:    'bg-indigo-100 text-indigo-800',
-  DELIVERED:  'bg-green-100 text-green-800',
-  CANCELLED:  'bg-red-100 text-red-800',
-  REFUNDED:   'bg-gray-100 text-gray-700',
-}
+/** Les mêmes statuts, sous la forme attendue par le sélecteur d'onglets. */
+const STATUS_TABS = STATUSES.map((s) => ({ id: s.value, label: s.label }))
+
+/** Choix de densité du tableau : on lit 20 lignes par défaut. */
+const PAGE_SIZES = [10, 20, 50] as const
 
 export default function Orders() {
   const [data, setData] = useState<PageData | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState<number>(20)
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
-    const params = new URLSearchParams({ page: String(page), limit: '20' })
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     if (statusFilter) params.set('status', statusFilter)
     api.get<PageData>(`/orders?${params}`)
       .then(setData)
       .finally(() => setLoading(false))
-  }, [page, statusFilter])
+  }, [page, limit, statusFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -73,116 +82,178 @@ export default function Orders() {
       )
     : (data?.items ?? [])
 
-  return (
-    <div className="p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  const total = data?.meta.total ?? 0
+  const shownCount = filtered.length
+  const first = shownCount === 0 ? 0 : (page - 1) * limit + 1
+  const last = shownCount === 0 ? 0 : first + shownCount - 1
+
+  const columns: Column<Order>[] = [
+    {
+      key: 'number',
+      header: 'N° commande',
+      label: 'N° commande',
+      sortBy: (o) => o.orderNumber,
+      cell: (o) => (
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Commandes</h1>
-          <p className="text-sm text-gray-500 mt-1">{data?.meta.total ?? '—'} commande(s) au total</p>
+          <span className="whitespace-nowrap font-mono text-xs font-medium">{o.orderNumber}</span>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {o.items?.length ?? 0} article{(o.items?.length ?? 0) > 1 ? 's' : ''}
+          </p>
         </div>
-      </div>
+      ),
+    },
+    {
+      key: 'customer',
+      header: 'Client',
+      label: 'Client',
+      hideOnMobile: true,
+      sortBy: (o) => o.customerName,
+      cell: (o) => (
+        <div>
+          <p>{o.customerName ?? <span className="text-muted-foreground">—</span>}</p>
+          {o.customerPhone && <p className="text-xs text-muted-foreground">{o.customerPhone}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'date',
+      header: 'Date',
+      label: 'Date',
+      hideOnMobile: true,
+      sortBy: (o) => o.createdAt,
+      cell: (o) => <span className="whitespace-nowrap text-muted-foreground">{fmtDate(o.createdAt)}</span>,
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      label: 'Total',
+      align: 'right',
+      sortBy: (o) => Number(o.total),
+      cell: (o) => <span className="whitespace-nowrap font-semibold tabular-nums">{fmt(o.total)}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Statut',
+      label: 'Statut',
+      sortBy: (o) => o.status,
+      cell: (o) => (
+        // Le statut se lit d'abord, et se change au clic : l'ancien menu
+        // déroulant coloré était illisible tant qu'on ne l'ouvrait pas.
+        <div className="flex">
+          {updatingId === o.id ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Changer le statut de ${o.orderNumber}`}
+              >
+                <span className="inline-flex items-center gap-1">
+                  <StatusBadge status={o.status} />
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {STATUSES.filter((s) => s.value).map((s) => (
+                  <DropdownMenuItem
+                    key={s.value}
+                    onSelect={() => updateStatus(o.id, s.value)}
+                    className={cn(s.value === o.status && 'font-semibold')}
+                  >
+                    <StatusBadge status={s.value} />
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      ),
+    },
+  ]
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="Rechercher par numéro ou client…"
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900" />
-        </div>
-        <div className="flex gap-1 flex-wrap">
-          {STATUSES.map((s) => (
-            <button key={s.value}
-              onClick={() => { setStatusFilter(s.value); setPage(1) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                statusFilter === s.value
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
+  return (
+    <div className="p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Commandes"
+        description={`${data?.meta.total ?? '—'} commande(s) au total`}
+      />
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-          </div>
-        ) : !filtered.length ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-2 text-gray-400">
-            <ShoppingBag className="w-8 h-8" />
-            <p className="text-sm">Aucune commande</p>
-          </div>
-        ) : (
+      <DataTable
+        rows={filtered}
+        columns={columns}
+        getRowId={(o) => o.id}
+        loading={loading}
+        columnsToggle
+        toolbar={
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">N° commande</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Client</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Date</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
-                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Statut</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filtered.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <span className="font-mono font-medium text-gray-900 text-xs">{order.orderNumber}</span>
-                        <p className="text-xs text-gray-400 mt-0.5">{order.items?.length ?? 0} article(s)</p>
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <p className="text-gray-900">{order.customerName ?? <span className="text-gray-400">—</span>}</p>
-                        {order.customerPhone && <p className="text-xs text-gray-400">{order.customerPhone}</p>}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{fmtDate(order.createdAt)}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-900">{fmt(order.total)}</td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="relative inline-block">
-                          {updatingId === order.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-gray-400 mx-auto" />
-                          ) : (
-                            <div className="relative">
-                              <select
-                                value={order.status}
-                                onChange={(e) => updateStatus(order.id, e.target.value)}
-                                className={`appearance-none pl-2.5 pr-6 py-1 rounded-full text-xs font-medium cursor-pointer focus:outline-none ${STATUS_COLORS[order.status] ?? 'bg-gray-100 text-gray-600'}`}
-                              >
-                                {STATUSES.filter(s => s.value).map(s => (
-                                  <option key={s.value} value={s.value}>{s.label}</option>
-                                ))}
-                              </select>
-                              <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none" />
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <Segmented
+              value={statusFilter}
+              options={STATUS_TABS}
+              onChange={(id) => { setStatusFilter(id); setPage(1) }}
+              ariaLabel="Filtrer par statut"
+            />
+            <div className="relative w-full max-w-56">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Numéro ou client…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="ps-8"
+                aria-label="Rechercher une commande"
+              />
             </div>
-
-            {data && data.meta.totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-                <p className="text-xs text-gray-500">Page {data.meta.page} / {data.meta.totalPages}</p>
-                <div className="flex gap-1">
-                  <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                    className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40">Précédent</button>
-                  <button disabled={page >= data.meta.totalPages} onClick={() => setPage(p => p + 1)}
-                    className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40">Suivant</button>
-                </div>
-              </div>
-            )}
           </>
-        )}
-      </div>
+        }
+        pagination={
+          <>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="hidden sm:inline">Lignes par page</span>
+              <Select
+                value={String(limit)}
+                onChange={(e) => { setLimit(Number(e.target.value)); setPage(1) }}
+                className="w-auto"
+                aria-label="Lignes par page"
+              >
+                {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm tabular-nums text-muted-foreground">
+                {first} – {last} sur {total}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+                aria-label="Page précédente"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                disabled={!data || page >= data.meta.totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                aria-label="Page suivante"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          </>
+        }
+        empty={{
+          icon: ShoppingBag,
+          title: 'Aucune commande',
+          description: search || statusFilter
+            ? 'Aucune commande ne correspond à ce filtre.'
+            : 'Les commandes du site et les ventes comptoir apparaîtront ici.',
+        }}
+      />
+
     </div>
   )
 }

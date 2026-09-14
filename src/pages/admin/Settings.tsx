@@ -98,11 +98,11 @@ export default function Settings() {
     <div className="p-6 lg:p-8 max-w-3xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
-          <p className="text-sm text-gray-500 mt-1">Configuration clé / valeur de la boutique</p>
+          <h1 className="text-2xl font-bold text-foreground">Paramètres</h1>
+          <p className="text-sm text-muted-foreground mt-1">Configuration clé / valeur de la boutique</p>
         </div>
         <button onClick={save} disabled={saving || loading}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           Enregistrer
         </button>
@@ -110,39 +110,39 @@ export default function Settings() {
 
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+        <div className="bg-card rounded-xl border border-border p-5 space-y-4">
           {rows.map((row, i) => (
             <div key={i} className="flex gap-3 items-start">
               <input
                 value={row.key}
                 onChange={(e) => updateRow(i, { key: e.target.value })}
                 placeholder="clé"
-                className="w-48 shrink-0 px-3 py-2 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-48 shrink-0 px-3 py-2 rounded-lg border border-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
               />
               <textarea
                 value={row.value}
                 onChange={(e) => updateRow(i, { value: e.target.value })}
                 placeholder="valeur (texte ou JSON)"
                 rows={1}
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
+                className="flex-1 px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
               />
               <button onClick={() => removeRow(i)}
-                className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors shrink-0">
+                className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ))}
 
           <button onClick={addRow}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <Plus className="w-4 h-4" /> Ajouter un paramètre
           </button>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {saved && <p className="text-sm text-emerald-600">Paramètres enregistrés.</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          {saved && <p className="text-sm text-success">Paramètres enregistrés.</p>}
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 
 // Boutique
 import Home from './pages/Home'
@@ -21,7 +21,7 @@ import PreorderFormModal from './components/preorder/PreorderFormModal'
 // Auth & Admin
 import { EdgeStoreProvider } from './lib/edgestore'
 import { API_ORIGIN } from './lib/api'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, ADMIN_ROLES, OWNER_ROLES } from './context/AuthContext'
 import { SettingsProvider } from './context/SettingsContext'
 import ProtectedRoute from './components/admin/ProtectedRoute'
 
@@ -43,6 +43,19 @@ const AdminSubscribers = lazy(() => import('./pages/admin/Subscribers'))
 const AdminReviews = lazy(() => import('./pages/admin/Reviews'))
 const AdminSettings = lazy(() => import('./pages/admin/Settings'))
 const AdminUsers = lazy(() => import('./pages/admin/Users'))
+const AdminAccount = lazy(() => import('./pages/admin/Account'))
+const AdminStores = lazy(() => import('./pages/admin/gestion/Stores'))
+const AdminCaisse = lazy(() => import('./pages/admin/gestion/Caisse'))
+const AdminExpenses = lazy(() => import('./pages/admin/gestion/Expenses'))
+const AdminBalance = lazy(() => import('./pages/admin/gestion/Balance'))
+const AdminGestionDashboard = lazy(() => import('./pages/admin/gestion/Dashboard'))
+const AdminStock = lazy(() => import('./pages/admin/gestion/Stock'))
+const AdminTargets = lazy(() => import('./pages/admin/gestion/Targets'))
+const AdminRevenue = lazy(() => import('./pages/admin/gestion/Revenue'))
+const AdminSales = lazy(() => import('./pages/admin/gestion/Sales'))
+const AdminShipments = lazy(() => import('./pages/admin/gestion/Shipments'))
+const AdminTransfers = lazy(() => import('./pages/admin/gestion/Transfers'))
+const AdminCustomers = lazy(() => import('./pages/admin/gestion/Customers'))
 
 function AdminFallback() {
   return (
@@ -98,13 +111,34 @@ export default function App() {
           <Route path="salon/gallery" element={<AdminSalonGallery />} />
           <Route path="quotes" element={<AdminQuotes />} />
           <Route path="preorders" element={<AdminPreorders />} />
+          {/* Comptoir : ouvert à la vendeuse, hors de la section Gestion. */}
+          <Route path="caisse" element={<AdminCaisse />} />
+          {/* L'ancienne adresse de la caisse reste valide (favoris, liens). */}
+          <Route path="gestion/caisse" element={<Navigate to="/admin/caisse" replace />} />
+
+          {/* Ce que l'entreprise gagne : super administrateur uniquement. */}
+          <Route path="gestion" element={<ProtectedRoute roles={OWNER_ROLES}><AdminGestionDashboard /></ProtectedRoute>} />
+          <Route path="gestion/sales" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminSales /></ProtectedRoute>} />
+          <Route path="gestion/revenue" element={<ProtectedRoute roles={OWNER_ROLES}><AdminRevenue /></ProtectedRoute>} />
+          <Route path="gestion/balance" element={<ProtectedRoute roles={OWNER_ROLES}><AdminBalance /></ProtectedRoute>} />
+
+          {/* Le reste de la gestion : les deux niveaux d'administration. */}
+          <Route path="gestion/shipments" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminShipments /></ProtectedRoute>} />
+          <Route path="gestion/expenses" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminExpenses /></ProtectedRoute>} />
+          <Route path="gestion/stock" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminStock /></ProtectedRoute>} />
+          <Route path="gestion/transfers" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminTransfers /></ProtectedRoute>} />
+          <Route path="gestion/targets" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminTargets /></ProtectedRoute>} />
+          <Route path="gestion/stores" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminStores /></ProtectedRoute>} />
+          <Route path="gestion/customers" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminCustomers /></ProtectedRoute>} />
           <Route path="subscribers" element={<AdminSubscribers />} />
           <Route path="reviews" element={<AdminReviews />} />
           <Route path="settings" element={<AdminSettings />} />
-          {/* Gestion des comptes : ADMIN uniquement. */}
+          {/* Chacun gère son propre mot de passe, quel que soit son rôle. */}
+          <Route path="account" element={<AdminAccount />} />
+          {/* Créer, modifier ou supprimer un compte : super administrateur seul. */}
           <Route
             path="users"
-            element={<ProtectedRoute roles={['ADMIN']}><AdminUsers /></ProtectedRoute>}
+            element={<ProtectedRoute roles={OWNER_ROLES}><AdminUsers /></ProtectedRoute>}
           />
         </Route>
       </Routes>

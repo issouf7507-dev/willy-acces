@@ -77,71 +77,71 @@ export default function Subscribers() {
   return (
     <div className="p-6 lg:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Inscrits</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-foreground">Inscrits</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           {data?.meta.total ?? '—'} inscrit(s) — notifications, promotions et jeux
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Nom, téléphone ou e-mail…"
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
         <button
           onClick={() => copyList('phones')}
           disabled={!data?.items.length}
-          className="flex items-center gap-2 px-3.5 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 px-3.5 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
         >
-          {copied === 'phones' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+          {copied === 'phones' ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
           Copier les numéros
         </button>
         <button
           onClick={() => copyList('emails')}
           disabled={!emailCount}
-          className="flex items-center gap-2 px-3.5 py-2 text-sm rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 px-3.5 py-2 text-sm rounded-lg border border-border text-foreground hover:bg-accent disabled:opacity-50 transition-colors"
         >
-          {copied === 'emails' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+          {copied === 'emails' ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
           Copier les e-mails ({emailCount})
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : !data?.items.length ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-2 text-gray-400">
+          <div className="flex flex-col items-center justify-center h-48 gap-2 text-muted-foreground">
             <BellRing className="w-8 h-8" />
             <p className="text-sm">{search ? 'Aucun inscrit ne correspond' : 'Aucun inscrit pour le moment'}</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border">
             {data.items.map((s) => (
-              <div key={s.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors">
+              <div key={s.id} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-foreground">
                     {s.firstName} {s.lastName}
                   </p>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {s.phone}
                     {s.email ? ` · ${s.email}` : ''}
                   </p>
                 </div>
-                <span className="text-xs text-gray-400 shrink-0 hidden sm:block">
+                <span className="text-xs text-muted-foreground shrink-0 hidden sm:block">
                   {DATE_FMT.format(new Date(s.createdAt))}
                 </span>
                 <button
                   onClick={() => remove(s)}
                   aria-label={`Retirer ${s.firstName} ${s.lastName}`}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors shrink-0"
+                  className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
