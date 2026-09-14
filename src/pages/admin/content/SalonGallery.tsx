@@ -84,39 +84,39 @@ export default function SalonGallery() {
     <div className="p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Salon — Galerie</h1>
-          <p className="text-sm text-gray-500 mt-1">{items.length} catalogue(s) de réalisations</p>
+          <h1 className="text-2xl font-bold text-foreground">Salon — Galerie</h1>
+          <p className="text-sm text-muted-foreground mt-1">{items.length} catalogue(s) de réalisations</p>
         </div>
         <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
           <Plus className="w-4 h-4" /> Nouveau catalogue
         </button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center h-48"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
       ) : !items.length ? (
-        <div className="flex flex-col items-center justify-center h-48 gap-2 text-gray-400 bg-white rounded-xl border border-gray-200">
+        <div className="flex flex-col items-center justify-center h-48 gap-2 text-muted-foreground bg-card rounded-xl border border-border">
           <ImageIcon className="w-8 h-8" /><p className="text-sm">Aucun catalogue</p>
         </div>
       ) : (
         <div className="space-y-4">
           {items.map((c) => (
-            <div key={c.id} className="bg-white rounded-xl border border-gray-200 p-4">
+            <div key={c.id} className="bg-card rounded-xl border border-border p-4">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="font-medium text-gray-900">{c.title}</h3>
-                  {c.description && <p className="text-xs text-gray-400 mt-0.5">{c.description}</p>}
-                  <p className="text-xs text-gray-400 mt-0.5">{c.images.length} image(s)</p>
+                  <h3 className="font-medium text-foreground">{c.title}</h3>
+                  {c.description && <p className="text-xs text-muted-foreground mt-0.5">{c.description}</p>}
+                  <p className="text-xs text-muted-foreground mt-0.5">{c.images.length} image(s)</p>
                 </div>
                 <button onClick={() => remove(c.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
+                  className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                 {c.images.map((img) => (
-                  <div key={img.id} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                  <div key={img.id} className="aspect-square rounded-lg overflow-hidden bg-muted">
                     <img src={img.imageUrl} alt={img.alt ?? c.title} className="w-full h-full object-cover" />
                   </div>
                 ))}
@@ -128,35 +128,35 @@ export default function SalonGallery() {
 
       {creating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Nouveau catalogue</h2>
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-4">
+            <h2 className="font-semibold text-foreground">Nouveau catalogue</h2>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Titre *</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Titre *</label>
               <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ex : Coiffure & Tresses"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Description</label>
               <input value={description} onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Images</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Images</label>
               <div onClick={() => fileRef.current?.click()}
-                className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl p-5 cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
-                <ImagePlus className="w-7 h-7 text-gray-400" />
-                <p className="text-sm text-gray-500">Cliquez pour ajouter des images</p>
+                className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border rounded-xl p-5 cursor-pointer hover:border-ring/40 hover:bg-accent transition-colors">
+                <ImagePlus className="w-7 h-7 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Cliquez pour ajouter des images</p>
                 <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
                   onChange={(e) => { const f = Array.from(e.target.files ?? []).filter((x) => x.type.startsWith('image/')); if (f.length) uploadFiles(f); e.target.value = '' }} />
               </div>
               {images.length > 0 && (
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {images.map((im, i) => (
-                    <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                    <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted/50">
                       <img src={im.url} alt="" className="w-full h-full object-cover" />
                       {im.uploading && (
                         <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-1">
@@ -177,15 +177,15 @@ export default function SalonGallery() {
               )}
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex gap-3 pt-1">
               <button onClick={() => setCreating(false)}
-                className="flex-1 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                className="flex-1 py-2 text-sm text-foreground border border-border rounded-lg hover:bg-accent transition-colors">
                 Annuler
               </button>
               <button onClick={save} disabled={saving || hasUploading}
-                className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
                 {(saving || hasUploading) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {hasUploading ? 'Téléchargement…' : 'Créer'}
               </button>

@@ -106,38 +106,38 @@ export default function Coupons() {
     <div className="p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Coupons</h1>
-          <p className="text-sm text-gray-500 mt-1">{coupons.length} coupon(s)</p>
+          <h1 className="text-2xl font-bold text-foreground">Coupons</h1>
+          <p className="text-sm text-muted-foreground mt-1">{coupons.length} coupon(s)</p>
         </div>
         <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
           <Plus className="w-4 h-4" /> Nouveau coupon
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : !coupons.length ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-2 text-gray-400">
+          <div className="flex flex-col items-center justify-center h-48 gap-2 text-muted-foreground">
             <Ticket className="w-8 h-8" />
             <p className="text-sm">Aucun coupon</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border">
             {coupons.map((c) => (
-              <div key={c.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors">
+              <div key={c.id} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono font-semibold text-gray-900">{c.code}</span>
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">{formatValue(c)}</span>
+                    <span className="font-mono font-semibold text-foreground">{c.code}</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-foreground">{formatValue(c)}</span>
                     {!c.isActive && (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Inactif</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">Inactif</span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {c.description ? `${c.description} · ` : ''}
                     utilisé {c.usedCount}{c.usageLimit != null ? ` / ${c.usageLimit}` : ''} fois
                     {c.minPurchase != null ? ` · min. ${c.minPurchase} FCFA` : ''}
@@ -145,11 +145,11 @@ export default function Coupons() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => openEdit(c)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                    className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button onClick={() => remove(c.id)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
+                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -161,79 +161,79 @@ export default function Coupons() {
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="font-semibold text-foreground">
               {editing === 'new' ? 'Nouveau coupon' : 'Modifier le coupon'}
             </h2>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Code *</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Code *</label>
               <input autoFocus value={form.code}
                 onChange={(e) => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="SOLDES10" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Type</label>
                 <select value={form.type}
                   onChange={(e) => setForm(f => ({ ...f, type: e.target.value as FormState['type'] }))}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900">
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring">
                   <option value="PERCENTAGE">Pourcentage (%)</option>
                   <option value="FIXED">Montant fixe (FCFA)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Valeur *</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Valeur *</label>
                 <input type="number" min={0} value={form.value}
                   onChange={(e) => setForm(f => ({ ...f, value: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder={form.type === 'PERCENTAGE' ? '10' : '5000'} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Achat min. (FCFA)</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Achat min. (FCFA)</label>
                 <input type="number" min={0} value={form.minPurchase}
                   onChange={(e) => setForm(f => ({ ...f, minPurchase: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="Optionnel" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Limite d'usage</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Limite d'usage</label>
                 <input type="number" min={0} value={form.usageLimit}
                   onChange={(e) => setForm(f => ({ ...f, usageLimit: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="Optionnel" />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Description</label>
               <input value={form.description}
                 onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="Optionnel" />
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isActive}
                 onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))}
-                className="w-4 h-4 rounded accent-gray-900" />
-              <span className="text-sm text-gray-700">Coupon actif</span>
+                className="w-4 h-4 rounded accent-primary" />
+              <span className="text-sm text-foreground">Coupon actif</span>
             </label>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex gap-3 pt-1">
               <button onClick={() => setEditing(null)}
-                className="flex-1 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                className="flex-1 py-2 text-sm text-foreground border border-border rounded-lg hover:bg-accent transition-colors">
                 Annuler
               </button>
               <button onClick={save} disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {editing === 'new' ? 'Créer' : 'Enregistrer'}
               </button>

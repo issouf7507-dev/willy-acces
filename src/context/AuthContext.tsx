@@ -2,13 +2,25 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { api } from '../lib/api'
 
 /** Rôles autorisés à entrer dans le back-office. CUSTOMER en est exclu. */
-export const STAFF_ROLES = ['ADMIN', 'MANAGER', 'STAFF'] as const
+export const STAFF_ROLES = ['SUPER_ADMIN', 'ADMIN', 'VENDEUR'] as const
+
+/**
+ * Les écrans qui disent ce que l'entreprise gagne — tableau de bord de la
+ * gestion, recettes, bilan mensuel. C'est la seule chose qu'un ADMIN ne voit
+ * pas, et le serveur applique la même règle de son côté.
+ */
+export const OWNER_ROLES = ['SUPER_ADMIN'] as const
+
+/** Le back-office de pilotage, comptoir exclu. */
+export const ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'] as const
 
 interface AdminUser {
   id: string
   name: string
   email: string
   role: string
+  /** Boutique de rattachement. Null pour l'administration, remplie pour une vendeuse. */
+  storeId?: string | null
 }
 
 interface AuthContextValue {

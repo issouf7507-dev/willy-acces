@@ -87,46 +87,46 @@ export default function SalonServices() {
     <div className="p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Salon — Prestations</h1>
-          <p className="text-sm text-gray-500 mt-1">{items.length} prestation(s)</p>
+          <h1 className="text-2xl font-bold text-foreground">Salon — Prestations</h1>
+          <p className="text-sm text-muted-foreground mt-1">{items.length} prestation(s)</p>
         </div>
         <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors">
           <Plus className="w-4 h-4" /> Nouvelle prestation
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : !items.length ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-2 text-gray-400">
+          <div className="flex flex-col items-center justify-center h-48 gap-2 text-muted-foreground">
             <Scissors className="w-8 h-8" />
             <p className="text-sm">Aucune prestation</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border">
             {items.map((s) => (
-              <div key={s.id} className="flex items-start gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors">
+              <div key={s.id} className="flex items-start gap-4 px-6 py-4 hover:bg-muted/40 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{s.name}</span>
-                    <span className="text-xs text-gray-500">· à partir de {fmt(s.priceFrom)}</span>
+                    <span className="font-medium text-foreground">{s.name}</span>
+                    <span className="text-xs text-muted-foreground">· à partir de {fmt(s.priceFrom)}</span>
                     {!s.isActive && (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Inactif</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">Inactif</span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{s.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{s.description}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => openEdit(s)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                    className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button onClick={() => remove(s.id)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
+                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -138,56 +138,56 @@ export default function SalonServices() {
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="font-semibold text-foreground">
               {editing === 'new' ? 'Nouvelle prestation' : 'Modifier la prestation'}
             </h2>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nom *</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Nom *</label>
               <input autoFocus value={form.name}
                 onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Description *</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Description *</label>
               <textarea rows={3} value={form.description}
                 onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
+                className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
             </div>
 
             <div className="flex items-end gap-4">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Prix à partir de (FCFA)</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Prix à partir de (FCFA)</label>
                 <input type="number" min={0} value={form.priceFrom}
                   onChange={(e) => setForm(f => ({ ...f, priceFrom: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div className="w-24">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Ordre</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Ordre</label>
                 <input type="number" min={0} value={form.sortOrder}
                   onChange={(e) => setForm(f => ({ ...f, sortOrder: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={form.isActive}
                 onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))}
-                className="w-4 h-4 rounded accent-gray-900" />
-              <span className="text-sm text-gray-700">Active</span>
+                className="w-4 h-4 rounded accent-primary" />
+              <span className="text-sm text-foreground">Active</span>
             </label>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex gap-3 pt-1">
               <button onClick={() => setEditing(null)}
-                className="flex-1 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                className="flex-1 py-2 text-sm text-foreground border border-border rounded-lg hover:bg-accent transition-colors">
                 Annuler
               </button>
               <button onClick={save} disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {editing === 'new' ? 'Créer' : 'Enregistrer'}
               </button>

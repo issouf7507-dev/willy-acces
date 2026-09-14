@@ -1,7 +1,22 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { useEdgeStore } from '../../lib/edgestore'
-import { Plus, Pencil, Trash2, Loader2, Tag, ImagePlus, Upload } from 'lucide-react'
+import {
+  Plus, Pencil, Trash2, Loader2, Tag, ImagePlus, Upload, Search, X, MoreHorizontal,
+} from 'lucide-react'
+import { PageHeader } from '@/components/admin/page-header'
+import { DataTable, type Column } from '@/components/admin/data-table'
+import { Segmented } from '@/components/admin/segmented'
+import { useConfirm } from '@/components/admin/confirm-dialog'
+import { ErrorState } from '@/components/admin/empty-state'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Field, Input, Label, Select } from '@/components/ui/input'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 
 interface Category {
   id: string; name: string; slug: string; isActive: boolean; parentId: string | null
@@ -18,53 +33,29 @@ interface FormState {
   imageUrl: string
 }
 
-function Row({ cat, onEdit, onRemove, nested = false }: {
-  cat: Category
-  onEdit: (c: Category) => void
-  onRemove: (id: string) => void
-  nested?: boolean
-}) {
-  return (
-    <div className={`flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors ${nested ? 'pl-12 bg-gray-50/30' : ''}`}>
-      <div className={`shrink-0 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center ${nested ? 'w-8 h-8' : 'w-11 h-11'}`}>
-        {cat.imageUrl
-          ? <img src={cat.imageUrl} alt="" className="w-full h-full object-cover" />
-          : <Tag className={`text-gray-300 ${nested ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          {nested && <span className="text-gray-300 select-none">└─</span>}
-          <span className={nested ? 'text-gray-700' : 'font-medium text-gray-900'}>{cat.name}</span>
-          {!cat.isActive && (
-            <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Inactif</span>
-          )}
-        </div>
-        <p className={`text-xs text-gray-400 mt-0.5 ${nested ? 'ml-6' : ''}`}>
-          {cat._count.products} produit(s) · slug : {cat.slug}
-        </p>
-      </div>
-      <div className="flex items-center gap-1">
-        <button onClick={() => onEdit(cat)}
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
-          <Pencil className="w-4 h-4" />
-        </button>
-        <button onClick={() => onRemove(cat.id)}
-          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  )
-}
+/** Une ligne du tableau : la catégorie, et si c'est une sous-catégorie. */
+interface Row { cat: Category; nested: boolean }
+
+const FILTERS = [
+  { id: 'all',      label: 'Toutes' },
+  { id: 'active',   label: 'Actives' },
+  { id: 'inactive', label: 'Inactives' },
+] as const
+
+type FilterId = (typeof FILTERS)[number]['id']
 
 export default function Categories() {
+  const [confirmDelete, confirmDialog] = useConfirm()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Category | null | 'new'>(null)
   const [form, setForm] = useState<FormState>({ name: '', isActive: true, parentId: '', imageUrl: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [listError, setListError] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<FilterId>('all')
   const fileRef = useRef<HTMLInputElement>(null)
   const { edgestore } = useEdgeStore()
 
@@ -92,6 +83,24 @@ export default function Categories() {
   // L'API renvoie tous les niveaux à plat : on regroupe pour l'affichage.
   const roots = categories.filter(c => !c.parentId)
   const childrenOf = (id: string) => categories.filter(c => c.parentId === id)
+
+  // Une sous-catégorie suit immédiatement sa parente : le tableau reste une
+  // hiérarchie, même à plat. C'est pourquoi aucune colonne n'est triable — un
+  // tri disperserait les enfants loin de leur parent.
+  const rows = useMemo<Row[]>(() => {
+    const q = search.trim().toLowerCase()
+    const keep = (c: Category) =>
+      (filter === 'all' || (filter === 'active') === c.isActive) &&
+      (!q || c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q))
+
+    return categories
+      .filter(c => !c.parentId)
+      .flatMap((cat) => [
+        ...(keep(cat) ? [{ cat, nested: false }] : []),
+        ...childrenOf(cat.id).filter(keep).map((child) => ({ cat: child, nested: true })),
+      ])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, search, filter])
 
   function openNew() {
     setForm({ name: '', isActive: true, parentId: '', imageUrl: '' })
@@ -128,129 +137,298 @@ export default function Categories() {
     }
   }
 
-  async function remove(id: string) {
-    if (!confirm('Supprimer cette catégorie ?')) return
-    await api.delete(`/categories/${id}`).catch((e) => alert(e.message))
+  async function remove(cat: Category) {
+    const ok = await confirmDelete({
+      title: `Supprimer « ${cat.name} » ?`,
+      description: cat._count.products > 0
+        ? `${cat._count.products} produit(s) y sont rattachés : l'API refusera la suppression tant qu'ils y sont.`
+        : 'La catégorie disparaît du site. Les produits ne sont pas supprimés.',
+      confirmLabel: 'Supprimer',
+      tone: 'danger',
+    })
+    if (!ok) return
+    setListError('')
+    await api.delete(`/categories/${cat.id}`).catch((e) => setListError(e.message))
     load()
   }
 
-  return (
-    <div className="p-6 lg:p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Catégories</h1>
-          <p className="text-sm text-gray-500 mt-1">{categories.length} catégorie(s)</p>
-        </div>
-        <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
-          <Plus className="w-4 h-4" /> Nouvelle catégorie
-        </button>
-      </div>
+  /** Ce qu'on ajoute sous le nom, quand il y a quelque chose à ajouter. */
+  function subtitle(cat: Category, nested: boolean): string | null {
+    if (nested) {
+      const parent = categories.find((c) => c.id === cat.parentId)
+      return parent ? `Sous-catégorie de ${parent.name}` : 'Sous-catégorie'
+    }
+    const n = childrenOf(cat.id).length
+    return n > 0 ? `${n} sous-catégorie(s)` : null
+  }
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+  const columns: Column<Row>[] = [
+    {
+      key: 'category',
+      header: 'Catégorie',
+      label: 'Catégorie',
+      cell: ({ cat, nested }) => (
+        <div className={cn('flex items-center gap-3', nested && 'ps-6')}>
+          {nested && (
+            <span className="-me-1 select-none text-muted-foreground/40" aria-hidden>└</span>
+          )}
+          <div
+            className={cn(
+              'flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted',
+              nested ? 'size-8' : 'size-10',
+            )}
+          >
+            {cat.imageUrl
+              ? <img src={cat.imageUrl} alt="" className="size-full object-cover" />
+              : <Tag className={cn('text-muted-foreground/40', nested ? 'size-3.5' : 'size-4')} />}
           </div>
-        ) : !categories.length ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-2 text-gray-400">
-            <Tag className="w-8 h-8" />
-            <p className="text-sm">Aucune catégorie</p>
+          <div className="min-w-0">
+            <p className={cn('max-w-60 truncate', nested ? 'text-foreground' : 'font-medium')}>
+              {cat.name}
+            </p>
+            {/* Pas de seconde ligne quand il n'y a rien à en dire : une
+                catégorie sans enfant tient sur une ligne. */}
+            {subtitle(cat, nested) && (
+              <p className="text-xs text-muted-foreground">{subtitle(cat, nested)}</p>
+            )}
           </div>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {roots.map((cat) => (
-              <div key={cat.id}>
-                <Row cat={cat} onEdit={openEdit} onRemove={remove} />
-                {childrenOf(cat.id).map((child) => (
-                  <Row key={child.id} cat={child} onEdit={openEdit} onRemove={remove} nested />
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      ),
+    },
+    {
+      key: 'slug',
+      header: 'Slug',
+      label: 'Slug',
+      hideOnMobile: true,
+      cell: ({ cat }) => <span className="text-muted-foreground">/{cat.slug}</span>,
+    },
+    {
+      key: 'products',
+      header: 'Produits',
+      label: 'Produits',
+      align: 'right',
+      cell: ({ cat }) => (
+        <span className={cn('font-medium tabular-nums', cat._count.products === 0 && 'text-muted-foreground/40')}>
+          {cat._count.products}
+        </span>
+      ),
+    },
+    {
+      key: 'state',
+      header: 'État',
+      label: 'État',
+      cell: ({ cat }) => (
+        <Badge variant={cat.isActive ? 'success' : 'secondary'} className="gap-1 px-2">
+          <span
+            className={cn('size-1.5 rounded-full', cat.isActive ? 'bg-success' : 'bg-muted-foreground/50')}
+            aria-hidden
+          />
+          {cat.isActive ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">Actions</span>,
+      align: 'right',
+      cell: ({ cat }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              aria-label={`Actions sur « ${cat.name} »`}
+            >
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => openEdit(cat)}>
+              <Pencil className="size-3.5" /> Modifier
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem data-variant="destructive" onSelect={() => remove(cat)}>
+              <Trash2 className="size-3.5" /> Supprimer
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ]
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8">
+      <PageHeader
+        title="Catégories"
+        description={`${categories.length} catégorie(s) · ${roots.length} principale(s)`}
+        actions={
+          <Button className="h-8" onClick={openNew}>
+            <Plus className="size-4" /> Nouvelle catégorie
+          </Button>
+        }
+      />
+
+      {listError && <ErrorState message={listError} />}
+
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getRowId={(r) => r.cat.id}
+        loading={loading}
+        columnsToggle
+        toolbar={
+          <>
+            <Segmented
+              value={filter}
+              options={FILTERS}
+              onChange={setFilter}
+              ariaLabel="Filtrer les catégories"
+            />
+            <div className="relative w-full max-w-56">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Rechercher une catégorie…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="ps-8"
+                aria-label="Rechercher une catégorie"
+              />
+            </div>
+          </>
+        }
+        pagination={
+          <span className="text-sm tabular-nums text-muted-foreground">
+            {rows.length} ligne(s) affichée(s)
+          </span>
+        }
+        empty={{
+          icon: Tag,
+          title: 'Aucune catégorie',
+          description: search || filter !== 'all'
+            ? 'Aucune catégorie ne correspond à ce filtre.'
+            : 'Créez votre première catégorie avec le bouton en haut à droite.',
+        }}
+      />
 
       {/* Inline modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4 my-8">
-            <h2 className="font-semibold text-gray-900">
-              {editing === 'new' ? 'Nouvelle catégorie' : 'Modifier la catégorie'}
-            </h2>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nom *</label>
-              <input autoFocus value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-                placeholder="Nom de la catégorie" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Image</label>
-              {form.imageUrl ? (
-                <div className="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden group">
-                  <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
-                  <button type="button" onClick={() => setForm(f => ({ ...f, imageUrl: '' }))}
-                    className="absolute top-2 right-2 p-1.5 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div onClick={() => !uploading && fileRef.current?.click()}
-                  className="flex flex-col items-center justify-center gap-2 aspect-[4/3] border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors">
-                  {uploading ? (
-                    <><Upload className="w-7 h-7 text-gray-400 animate-bounce" /><span className="text-sm text-gray-500">Téléchargement…</span></>
-                  ) : (
-                    <><ImagePlus className="w-7 h-7 text-gray-400" /><span className="text-sm text-gray-500">Cliquez pour uploader une image</span></>
-                  )}
-                </div>
-              )}
-              <input ref={fileRef} type="file" accept="image/*" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f?.type.startsWith('image/')) uploadImage(f); e.target.value = '' }} />
-              <input value={form.imageUrl}
-                onChange={(e) => setForm(f => ({ ...f, imageUrl: e.target.value }))}
-                className="mt-2 w-full px-3.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-900"
-                placeholder="…ou coller une URL d'image" />
-              <p className="text-xs text-gray-400 mt-1.5">
-                Affichée sur la carte de la catégorie sur la page d'accueil.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Catégorie parente</label>
-              <select
-                value={form.parentId}
-                onChange={(e) => setForm(f => ({ ...f, parentId: e.target.value }))}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-8 w-full max-w-sm rounded-2xl border border-border bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+              <h2 className="font-heading font-semibold text-foreground">
+                {editing === 'new' ? 'Nouvelle catégorie' : 'Modifier la catégorie'}
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => setEditing(null)}
+                aria-label="Fermer"
               >
-                <option value="">Aucune (catégorie principale)</option>
-                {roots
-                  .filter(r => editing === 'new' || r.id !== editing?.id)
-                  .map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <p className="text-xs text-gray-400 mt-1.5">
-                Une sous-catégorie devient un onglet de la page de sa catégorie parente.
-              </p>
+                <X className="size-4" />
+              </Button>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.isActive}
-                onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))}
-                className="w-4 h-4 rounded accent-gray-900" />
-              <span className="text-sm text-gray-700">Catégorie active</span>
-            </label>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="flex gap-3 pt-1">
-              <button onClick={() => setEditing(null)}
-                className="flex-1 py-2 text-sm text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+
+            <div className="space-y-4 px-5 py-4">
+              <Field label="Nom *" htmlFor="cat-name">
+                <Input
+                  id="cat-name"
+                  autoFocus
+                  value={form.name}
+                  onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Nom de la catégorie"
+                />
+              </Field>
+
+              <Field
+                label="Image"
+                description="Affichée sur la carte de la catégorie sur la page d'accueil."
+              >
+                {form.imageUrl ? (
+                  <div className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-border bg-muted">
+                    <img src={form.imageUrl} alt="" className="size-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, imageUrl: '' }))}
+                      className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      aria-label="Retirer l'image"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => !uploading && fileRef.current?.click()}
+                    className="flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border transition-colors hover:border-ring/40 hover:bg-accent"
+                  >
+                    {uploading ? (
+                      <><Upload className="size-7 animate-bounce text-muted-foreground" /><span className="text-sm text-muted-foreground">Téléchargement…</span></>
+                    ) : (
+                      <><ImagePlus className="size-7 text-muted-foreground" /><span className="text-sm text-muted-foreground">Cliquez pour uploader une image</span></>
+                    )}
+                  </div>
+                )}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f?.type.startsWith('image/')) uploadImage(f); e.target.value = '' }}
+                />
+                <Input
+                  value={form.imageUrl}
+                  onChange={(e) => setForm(f => ({ ...f, imageUrl: e.target.value }))}
+                  className="text-xs text-muted-foreground"
+                  placeholder="…ou coller une URL d'image"
+                />
+              </Field>
+
+              <Field
+                label="Catégorie parente"
+                htmlFor="cat-parent"
+                description="Une sous-catégorie devient un onglet de la page de sa catégorie parente."
+              >
+                <Select
+                  id="cat-parent"
+                  value={form.parentId}
+                  onChange={(e) => setForm(f => ({ ...f, parentId: e.target.value }))}
+                >
+                  <option value="">Aucune (catégorie principale)</option>
+                  {roots
+                    .filter(r => editing === 'new' || r.id !== editing?.id)
+                    .map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </Select>
+              </Field>
+
+              <Label className="cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setForm(f => ({ ...f, isActive: e.target.checked }))}
+                  className="size-4 rounded accent-primary"
+                />
+                Catégorie active
+              </Label>
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+              <Button variant="outline" className="h-8" onClick={() => setEditing(null)}>
                 Annuler
-              </button>
-              <button onClick={save} disabled={saving || uploading}
-                className="flex-1 flex items-center justify-center gap-2 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors">
-                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              </Button>
+              <Button className="h-8" onClick={save} disabled={saving || uploading}>
+                {saving && <Loader2 className="size-3.5 animate-spin" />}
                 {editing === 'new' ? 'Créer' : 'Enregistrer'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       )}
+
+      {confirmDialog}
     </div>
   )
 }

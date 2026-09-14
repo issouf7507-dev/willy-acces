@@ -10,11 +10,13 @@ const badgeVariants = cva(
         secondary: 'border-transparent bg-secondary text-secondary-foreground',
         destructive: 'border-transparent bg-destructive text-destructive-foreground',
         outline: 'text-foreground',
-        success: 'border-transparent bg-green-100 text-green-800',
-        warning: 'border-transparent bg-yellow-100 text-yellow-800',
-        info: 'border-transparent bg-blue-100 text-blue-800',
-        purple: 'border-transparent bg-purple-100 text-purple-800',
-        indigo: 'border-transparent bg-indigo-100 text-indigo-800',
+        // Fond teinté plutôt que palette figée : `bg-green-100` resterait
+        // clair sur fond sombre. Ces variantes suivent le thème.
+        success: 'border-transparent bg-success/15 text-success',
+        warning: 'border-transparent bg-warning/15 text-warning',
+        info: 'border-transparent bg-info/15 text-info',
+        purple: 'border-transparent bg-chart-5/15 text-chart-5',
+        indigo: 'border-transparent bg-chart-3/15 text-chart-3',
       },
     },
     defaultVariants: { variant: 'default' },
