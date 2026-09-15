@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../../lib/api'
 import { fetchAllProducts } from '../../../lib/catalog'
 import {
-  Plus, Trash2, Loader2, Check, Receipt, Clock, X,
+  Plus, Trash2, Loader2, Check, Receipt, Clock, X, Package, ChevronRight,
 } from 'lucide-react'
 import { EmptyState, ErrorState } from '@/components/admin/empty-state'
 import { useToast } from '@/components/admin/toast'
 import { CardShell } from '@/components/admin/stat-card'
 import { Button } from '@/components/ui/button'
-import { Input, Select, Label, Field } from '@/components/ui/input'
+import { Input, Select, Field } from '@/components/ui/input'
+import { ProductPicker } from '@/components/admin/product-picker'
+import { useStoreScope } from '@/lib/store-scope'
 import { cn } from '@/lib/utils'
 
 type PaymentMethod = 'CASH' | 'MOBILE_MONEY' | 'BANK_TRANSFER' | 'CARD' | 'OTHER'
@@ -21,8 +23,16 @@ const PAYMENT_LABEL: Record<PaymentMethod, string> = {
   OTHER: 'Autre',
 }
 
-interface StoreOption { id: string; name: string }
-interface ProductOption { id: string; name: string; price: number | string; stock: number }
+
+interface ProductOption {
+  id: string
+  name: string
+  price: number | string
+  stock: number
+  sku?: string | null
+  images?: { url: string }[]
+  category?: { name: string } | null
+}
 
 interface Line {
   /** Clé locale : plusieurs lignes peuvent porter le même produit. */
@@ -63,11 +73,12 @@ const emptyLine = (): Line => ({
 
 export default function Caisse() {
   const { toast } = useToast()
-  const [stores, setStores] = useState<StoreOption[]>([])
+  // Une vendeuse encaisse pour sa seule boutique : la règle est la même à la
+  // caisse, aux dépenses du jour et au stock, donc elle vit à un seul endroit.
+  const { stores, storeId, setStoreId, isSeller, storeError } = useStoreScope()
   const [products, setProducts] = useState<ProductOption[]>([])
   const [sales, setSales] = useState<Sale[]>([])
 
-  const [storeId, setStoreId] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
@@ -75,6 +86,9 @@ export default function Caisse() {
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  /** Ligne à remplir par le sélecteur ; `null` = on compose le ticket d'un trait. */
+  const [picker, setPicker] = useState<{ lineKey: number | null } | null>(null)
 
   const [unpaid, setUnpaid] = useState<UnpaidOrder[]>([])
   const [cashing, setCashing] = useState<UnpaidOrder | null>(null)
@@ -89,14 +103,10 @@ export default function Caisse() {
   }
 
   useEffect(() => {
-    api.get<StoreOption[]>('/gestion/stores')
-      .then((list) => { setStores(list); setStoreId((cur) => cur || list[0]?.id || '') })
-      .catch(() => setStores([]))
     fetchAllProducts<ProductOption>()
       .then(setProducts)
       .catch((e) => setError(e instanceof Error ? e.message : 'Catalogue indisponible'))
     loadSales()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const productById = useMemo(
@@ -131,6 +141,41 @@ export default function Caisse() {
   function pickProduct(key: number, productId: string) {
     const p = productById.get(productId)
     setLine(key, { productId, unitPrice: p ? String(n(p.price)) : '' })
+  }
+
+  /** Quantité déjà au ticket, par produit : le sélecteur la rappelle sur la vignette. */
+  const countById = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const l of lines) {
+      if (!l.productId) continue
+      m.set(l.productId, (m.get(l.productId) ?? 0) + n(l.quantity))
+    }
+    return m
+  }, [lines])
+
+  /**
+   * Ajout au ticket depuis le sélecteur.
+   *
+   * Toucher deux fois la même vignette incrémente la ligne existante plutôt que
+   * d'en empiler une seconde — sauf si elle porte une remise, auquel cas la
+   * séparation est voulue et le motif ne vaudrait plus pour la quantité ajoutée.
+   */
+  function addProduct(p: ProductOption) {
+    setLines((ls) => {
+      const blank = ls.find((l) => !l.productId)
+      if (blank) {
+        return ls.map((l) =>
+          l.key === blank.key ? { ...l, productId: p.id, unitPrice: String(n(p.price)) } : l,
+        )
+      }
+      const same = ls.find((l) => l.productId === p.id && !n(l.discountAmount))
+      if (same) {
+        return ls.map((l) =>
+          l.key === same.key ? { ...l, quantity: String(n(l.quantity) + 1) } : l,
+        )
+      }
+      return [...ls, { ...emptyLine(), productId: p.id, unitPrice: String(n(p.price)) }]
+    })
   }
 
   const totals = useMemo(() => {
@@ -194,7 +239,9 @@ export default function Caisse() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl space-y-4 lg:space-y-6">
+      {/* Pas de largeur max : la caisse occupe le même cadre que les autres
+          écrans du back-office, qui s'appuient tous sur le seul `main`. */}
+      <div className="space-y-4 lg:space-y-6">
         <div className="mb-4 flex flex-col justify-between space-y-4 lg:flex-row lg:items-center lg:space-y-2">
           <div>
             <h1 className="text-2xl font-bold">Caisse</h1>
@@ -215,7 +262,7 @@ export default function Caisse() {
           </div>
         </div>
 
-        {error && <ErrorState message={error} />}
+        {(storeError || error) && <ErrorState message={storeError || error} />}
 
         <div className="grid gap-4 lg:grid-cols-6">
           <div className="space-y-4 lg:col-span-4">
@@ -223,8 +270,17 @@ export default function Caisse() {
             <CardShell title="La vente">
               <div className="space-y-4">
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <Field label="Boutique *" htmlFor="caisse-store">
-                    <Select id="caisse-store" value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+                  <Field
+                    label="Boutique *"
+                    htmlFor="caisse-store"
+                    description={isSeller ? 'Votre boutique de rattachement.' : undefined}
+                  >
+                    <Select
+                      id="caisse-store"
+                      value={storeId}
+                      disabled={isSeller}
+                      onChange={(e) => setStoreId(e.target.value)}
+                    >
                       {stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </Select>
                   </Field>
@@ -274,7 +330,7 @@ export default function Caisse() {
             <CardShell
               title="Articles"
               action={
-                <Button variant="outline" size="sm" onClick={() => setLines((ls) => [...ls, emptyLine()])}>
+                <Button variant="outline" size="sm" onClick={() => setPicker({ lineKey: null })}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter
                 </Button>
               }
@@ -286,42 +342,64 @@ export default function Caisse() {
               const short = p && p.stock <= n(l.quantity) && n(l.quantity) > 0
 
               return (
-                <div key={l.key} className="space-y-3 rounded-lg border border-border p-3">
-                    <div className="flex items-start gap-2">
-                      <div className="min-w-0 flex-1">
-                        <Label htmlFor={`line-${l.key}-product`} className="text-xs text-muted-foreground">
-                          Article {index + 1}
-                        </Label>
-                        <Select
+                <div key={l.key} className="space-y-4 rounded-lg border border-border p-3">
+                    <Field label={`Article ${index + 1}`} htmlFor={`line-${l.key}-product`}>
+                      <div className="flex items-center gap-2">
+                        {/* La vignette remplace la liste déroulante : au comptoir
+                            on reconnaît l'article à sa photo, pas à son nom. */}
+                        <button
+                          type="button"
                           id={`line-${l.key}-product`}
-                          value={l.productId}
-                          onChange={(e) => pickProduct(l.key, e.target.value)}
+                          onClick={() => setPicker({ lineKey: l.key })}
+                          className={cn(
+                            'flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 text-left transition',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            p
+                              ? 'border border-border bg-background hover:border-foreground/30'
+                              : 'border border-dashed border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                          )}
                         >
-                          <option value="">Choisir…</option>
-                          {products.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                        </Select>
-                        {p && (
-                          <p className={cn('mt-1 text-xs', short ? 'text-warning' : 'text-muted-foreground')}>
-                            stock : {p.stock}
-                            {short && ' — au plus juste'}
-                          </p>
-                        )}
+                          <span className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
+                            {p?.images?.[0] ? (
+                              <img src={p.images[0].url} alt="" className="size-full object-cover" />
+                            ) : (
+                              <Package className="size-4 text-muted-foreground/40" />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">
+                              {p ? p.name : 'Choisir un article'}
+                            </span>
+                            <span
+                              className={cn(
+                                'block truncate text-xs',
+                                short ? 'text-warning' : 'text-muted-foreground',
+                              )}
+                            >
+                              {p
+                                ? `${fcfa(n(p.price))} · stock ${p.stock}${short ? ' — au plus juste' : ''}`
+                                : 'Photo, prix et stock sous les yeux'}
+                            </span>
+                          </span>
+                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                        </button>
+                        {/* Centrée sur la vignette : un décalage fixe la laissait
+                            flotter au-dessus dès que la hauteur du bloc changeait. */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label={`Retirer l'article ${index + 1}`}
+                          disabled={lines.length === 1}
+                          onClick={() => setLines((ls) => (ls.length > 1 ? ls.filter((x) => x.key !== l.key) : ls))}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="mt-6 text-muted-foreground hover:text-destructive"
-                        aria-label={`Retirer l'article ${index + 1}`}
-                        disabled={lines.length === 1}
-                        onClick={() => setLines((ls) => (ls.length > 1 ? ls.filter((x) => x.key !== l.key) : ls))}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    </Field>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label htmlFor={`line-${l.key}-qty`} className="text-xs text-muted-foreground">Qté</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <Field label="Qté" htmlFor={`line-${l.key}-qty`}>
                         <Input
                           id={`line-${l.key}-qty`}
                           type="number"
@@ -330,9 +408,8 @@ export default function Caisse() {
                           value={l.quantity}
                           onChange={(e) => setLine(l.key, { quantity: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor={`line-${l.key}-price`} className="text-xs text-muted-foreground">Prix/u</Label>
+                      </Field>
+                      <Field label="Prix/u" htmlFor={`line-${l.key}-price`}>
                         <Input
                           id={`line-${l.key}-price`}
                           type="number"
@@ -341,9 +418,8 @@ export default function Caisse() {
                           value={l.unitPrice}
                           onChange={(e) => setLine(l.key, { unitPrice: e.target.value })}
                         />
-                      </div>
-                      <div>
-                        <Label htmlFor={`line-${l.key}-discount`} className="text-xs text-muted-foreground">Remise</Label>
+                      </Field>
+                      <Field label="Remise" htmlFor={`line-${l.key}-discount`}>
                         <Input
                           id={`line-${l.key}-discount`}
                           type="number"
@@ -352,23 +428,20 @@ export default function Caisse() {
                           value={l.discountAmount}
                           onChange={(e) => setLine(l.key, { discountAmount: e.target.value })}
                         />
-                      </div>
+                      </Field>
                     </div>
 
                     {/* Le motif n'apparaît qu'avec une remise : un champ grisé
                         occupe une place qu'un téléphone n'a pas. */}
                     {n(l.discountAmount) > 0 && (
-                      <div>
-                        <Label htmlFor={`line-${l.key}-reason`} className="text-xs text-muted-foreground">
-                          Motif de la remise
-                        </Label>
+                      <Field label="Motif de la remise" htmlFor={`line-${l.key}-reason`}>
                         <Input
                           id={`line-${l.key}-reason`}
                           value={l.discountReason}
                           onChange={(e) => setLine(l.key, { discountReason: e.target.value })}
                           placeholder="Client fidèle"
                         />
-                      </div>
+                      </Field>
                     )}
 
                     {l.productId && (
@@ -483,6 +556,24 @@ export default function Caisse() {
         </div>
       </div>
       </div>
+
+      {picker && (
+        <ProductPicker
+          products={products}
+          counts={countById}
+          multiple={picker.lineKey === null}
+          title={picker.lineKey === null ? 'Ajouter des articles' : 'Choisir un article'}
+          onClose={() => setPicker(null)}
+          onPick={(prod) => {
+            if (picker.lineKey === null) {
+              addProduct(prod as ProductOption)
+            } else {
+              pickProduct(picker.lineKey, prod.id)
+              setPicker(null)
+            }
+          }}
+        />
+      )}
 
       {cashing && (
         <div

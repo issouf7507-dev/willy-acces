@@ -14,7 +14,7 @@ const field =
   'aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 ' +
   'md:text-sm dark:bg-input/30 dark:disabled:bg-input/80'
 
-function Input({ className, type, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
   return (
     <input
       type={type}
@@ -80,7 +80,11 @@ function Field({
   className?: string
 }) {
   return (
-    <div className={cn('grid gap-2', className)}>
+    // `content-start` : deux champs côte à côte s'étirent à la hauteur de la
+    // rangée, et une grille redistribue ce surplus à ses lignes automatiques.
+    // Sans lui, le champ sans description voit son libellé et son contrôle
+    // descendre — « Paiement » ne s'alignait plus sur « Boutique ».
+    <div className={cn('grid content-start gap-2', className)}>
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
       {children}
       {description && <p className="text-sm text-muted-foreground">{description}</p>}

@@ -36,6 +36,7 @@ const groups: NavGroupData[] = [
       // Le comptoir est le métier de la vendeuse : il vit hors de la Gestion,
       // qui lui est fermée.
       { id: 'caisse', title: 'Caisse', icon: ShoppingCart, to: '/admin/caisse' },
+      { id: 'daily-expenses', title: 'Dépenses du jour', icon: Wallet, to: '/admin/depenses' },
     ],
   },
   {
