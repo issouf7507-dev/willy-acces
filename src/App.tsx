@@ -46,6 +46,7 @@ const AdminUsers = lazy(() => import('./pages/admin/Users'))
 const AdminAccount = lazy(() => import('./pages/admin/Account'))
 const AdminStores = lazy(() => import('./pages/admin/gestion/Stores'))
 const AdminCaisse = lazy(() => import('./pages/admin/gestion/Caisse'))
+const AdminDailyExpenses = lazy(() => import('./pages/admin/gestion/DailyExpenses'))
 const AdminExpenses = lazy(() => import('./pages/admin/gestion/Expenses'))
 const AdminBalance = lazy(() => import('./pages/admin/gestion/Balance'))
 const AdminGestionDashboard = lazy(() => import('./pages/admin/gestion/Dashboard'))
@@ -113,6 +114,9 @@ export default function App() {
           <Route path="preorders" element={<AdminPreorders />} />
           {/* Comptoir : ouvert à la vendeuse, hors de la section Gestion. */}
           <Route path="caisse" element={<AdminCaisse />} />
+          {/* Les sorties de caisse du jour se notent au comptoir ; le mois
+              entier reste dans Gestion, réservé au bureau. */}
+          <Route path="depenses" element={<AdminDailyExpenses />} />
           {/* L'ancienne adresse de la caisse reste valide (favoris, liens). */}
           <Route path="gestion/caisse" element={<Navigate to="/admin/caisse" replace />} />
 
