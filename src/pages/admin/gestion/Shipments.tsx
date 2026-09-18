@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
 import { fetchAllProducts } from '../../../lib/catalog'
 import {
-  Plus, Trash2, Loader2, Truck, PackageCheck, Ban, ChevronRight, AlertTriangle,
+  Plus, Trash2, Loader2, Truck, PackageCheck, Ban, ChevronRight, AlertTriangle, Layers,
 } from 'lucide-react'
 
 type Status = 'DRAFT' | 'RECEIVED' | 'CANCELLED'
@@ -10,6 +10,7 @@ type Status = 'DRAFT' | 'RECEIVED' | 'CANCELLED'
 interface ShipmentItem {
   id: string
   productId: string
+  groupId: string | null
   storeId: string
   store: { id: string; name: string }
   quantity: number
@@ -20,18 +21,25 @@ interface ShipmentItem {
   product: { id: string; name: string; sku: string | null; stock: number }
 }
 
+interface ShipmentGroup {
+  id: string
+  code: string
+  label: string | null
+  shippingCost: string | number
+}
+
 interface Shipment {
   id: string
   code: string
   label: string | null
   storeId: string | null
   store: { id: string; name: string } | null
-  shippingCost: string | number
   status: Status
   orderedAt: string | null
   receivedAt: string | null
   notes: string | null
   items: ShipmentItem[]
+  groups: ShipmentGroup[]
 }
 
 interface ProductOption { id: string; name: string; sku: string | null }
@@ -58,10 +66,18 @@ const n = (v: string | number | null | undefined) => (v == null ? 0 : Number(v))
 const fcfa = (v: string | number | null | undefined) =>
   n(v).toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' F'
 
-/** Quantité totale du lot : c'est elle qui divise le transport. */
 const totalQty = (s: Shipment) => s.items.reduce((sum, i) => sum + i.quantity, 0)
 const totalPurchase = (s: Shipment) =>
   s.items.reduce((sum, i) => sum + n(i.unitCost) * i.quantity, 0)
+const totalShipping = (s: Shipment) => s.groups.reduce((sum, g) => sum + n(g.shippingCost), 0)
+
+/** Quantité du groupe : c'est elle qui divise son transport. */
+const groupQty = (s: Shipment, groupId: string) =>
+  s.items.filter((i) => i.groupId === groupId).reduce((sum, i) => sum + i.quantity, 0)
+const groupUnitShipping = (s: Shipment, g: ShipmentGroup) => {
+  const qty = groupQty(s, g.id)
+  return qty > 0 ? n(g.shippingCost) / qty : 0
+}
 
 export default function Shipments() {
   const [shipments, setShipments] = useState<Shipment[]>([])
@@ -79,6 +95,10 @@ export default function Shipments() {
     productId: '', quantity: '', unitCost: '', plannedPrice: '', name: '', storeId: '',
   })
   const creatingProduct = line.productId === NEW_PRODUCT
+
+  // Produits cochés dans l'arrivage ouvert, pour en faire un groupe.
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [groupShipping, setGroupShipping] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -117,8 +137,44 @@ export default function Shipments() {
 
   async function createShipment() {
     await run(async () => {
-      const created = await api.post<Shipment>('/gestion/shipments', { shippingCost: 0 })
-      setOpen(created)
+      const created = await api.post<Shipment>('/gestion/shipments', {})
+      openShipment(created)
+    })
+  }
+
+  function openShipment(s: Shipment | null) {
+    setOpen(s)
+    setSelected(new Set())
+    setGroupShipping('')
+    setError('')
+  }
+
+  function toggle(itemId: string) {
+    setSelected((cur) => {
+      const next = new Set(cur)
+      if (next.has(itemId)) next.delete(itemId)
+      else next.add(itemId)
+      return next
+    })
+  }
+
+  async function createGroup(s: Shipment) {
+    if (!selected.size) { setError('Cochez les produits qui forment le groupe'); return }
+    const shippingCost = Number(groupShipping || 0)
+    if (!(shippingCost >= 0)) { setError('Coût de transport invalide'); return }
+    await run(async () => {
+      await api.post(`/gestion/shipments/${s.id}/groups`, { shippingCost, itemIds: [...selected] })
+      setSelected(new Set())
+      setGroupShipping('')
+    })
+  }
+
+  /** Un arrivage réceptionné ne se supprime pas : il porte l'historique du stock. */
+  function deleteShipment(s: Shipment) {
+    if (!confirm(`Supprimer l'arrivage ${s.code} et ses groupes ?`)) return
+    run(async () => {
+      await api.delete(`/gestion/shipments/${s.id}`)
+      if (open?.id === s.id) openShipment(null)
     })
   }
 
@@ -168,9 +224,7 @@ export default function Shipments() {
   }
 
   const editable = open?.status === 'DRAFT'
-  // Aperçu en direct : ce que donnera la réception si on la lançait maintenant.
-  const previewUnitShipping =
-    open && totalQty(open) > 0 ? n(open.shippingCost) / totalQty(open) : 0
+  const ungroupedCount = open ? open.items.filter((i) => !i.groupId).length : 0
 
   return (
     <div className="p-6 lg:p-8">
@@ -178,7 +232,8 @@ export default function Shipments() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Arrivages</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Le transport du lot est réparti à l'unité : c'est ce qui donne le vrai coût de revient.
+            On saisit ce que le cargo livre, puis on répartit les produits en groupes : le transport de
+            chaque groupe est réparti à l'unité, c'est ce qui donne le vrai coût de revient.
           </p>
         </div>
         <button onClick={createShipment} disabled={busy}
@@ -207,8 +262,9 @@ export default function Shipments() {
         ) : (
           <div className="divide-y divide-border">
             {shipments.map((s) => (
-              <button key={s.id} onClick={() => { setOpen(s); setError('') }}
-                className="w-full flex items-center gap-4 px-6 py-4 hover:bg-muted/40 transition-colors text-left">
+              <div key={s.id} className="flex items-center hover:bg-muted/40 transition-colors">
+              <button onClick={() => openShipment(s)}
+                className="flex-1 min-w-0 flex items-center gap-4 pl-6 pr-3 py-4 text-left">
                 <div className="shrink-0 w-11 h-11 rounded-lg bg-muted flex items-center justify-center">
                   <Truck className="w-4 h-4 text-muted-foreground" />
                 </div>
@@ -221,12 +277,23 @@ export default function Shipments() {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {s.items.length} ligne(s) · {totalQty(s)} article(s) · achat {fcfa(totalPurchase(s))} · transport {fcfa(s.shippingCost)}
+                    {s.items.length} produit(s) · {totalQty(s)} article(s) · {s.groups.length} groupe(s)
+                    {s.groups.length > 0 && ` (${s.groups.map((g) => g.code).join(', ')})`} · achat {fcfa(totalPurchase(s))} · transport {fcfa(totalShipping(s))}
                     {s.receivedAt ? ` · reçu le ${new Date(s.receivedAt).toLocaleDateString('fr-FR')}` : ''}
                   </p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
               </button>
+              <div className="w-12 pr-4 flex justify-end">
+                {s.status !== 'RECEIVED' && (
+                  <button onClick={() => deleteShipment(s)} disabled={busy}
+                    title={`Supprimer l'arrivage ${s.code}`} aria-label={`Supprimer l'arrivage ${s.code}`}
+                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              </div>
             ))}
           </div>
         )}
@@ -242,7 +309,7 @@ export default function Shipments() {
                   {STATUS_LABEL[open.status]}
                 </span>
               </div>
-              <button onClick={() => setOpen(null)} className="text-sm text-muted-foreground hover:text-foreground">Fermer</button>
+              <button onClick={() => openShipment(null)} className="text-sm text-muted-foreground hover:text-foreground">Fermer</button>
             </div>
 
             <div className="p-6 space-y-5">
@@ -270,22 +337,22 @@ export default function Shipments() {
                     Reprise par défaut sur chaque ligne. Un lot partagé se répartit ligne par ligne.
                   </p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Coût de transport du lot</label>
-                  <input type="number" min="0" value={String(n(open.shippingCost))} disabled={!editable}
-                    onChange={(e) => setOpen({ ...open, shippingCost: e.target.value })}
-                    onBlur={() => editable && run(() => api.patch(`/gestion/shipments/${open.id}`, { shippingCost: n(open.shippingCost) }))}
-                    className={`${input} disabled:bg-muted/50 disabled:text-muted-foreground`} />
-                </div>
               </div>
 
-              {/* Lignes */}
-              <div className="border border-border rounded-xl overflow-hidden">
+              {/* Produits reçus */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Produits reçus</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                  Tout ce que le cargo a livré.{editable && ' Cochez des produits pour en faire un groupe.'}
+                </p>
+              <div className="border border-border rounded-xl overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 text-xs text-muted-foreground">
                     <tr>
+                      {editable && <th className="w-8 pl-4 py-2.5" />}
                       <th className="text-left font-medium px-4 py-2.5">Produit</th>
                       <th className="text-left font-medium px-3 py-2.5">Boutique</th>
+                      <th className="text-left font-medium px-3 py-2.5">Groupe</th>
                       <th className="text-right font-medium px-3 py-2.5">Qté</th>
                       <th className="text-right font-medium px-3 py-2.5">Achat/u</th>
                       <th className="text-right font-medium px-3 py-2.5">Transport/u</th>
@@ -295,11 +362,22 @@ export default function Shipments() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {open.items.map((i) => {
-                      // Avant réception rien n'est figé : on montre la projection.
-                      const shipping = i.unitShipping != null ? n(i.unitShipping) : previewUnitShipping
-                      const landed = i.landedCost != null ? n(i.landedCost) : n(i.unitCost) + previewUnitShipping
+                      // Avant réception rien n'est figé : on montre la projection
+                      // d'après le groupe de la ligne.
+                      const group = open.groups.find((g) => g.id === i.groupId)
+                      const preview = group ? groupUnitShipping(open, group) : null
+                      const shipping = i.unitShipping != null ? n(i.unitShipping) : preview
+                      const landed = i.landedCost != null
+                        ? n(i.landedCost)
+                        : preview != null ? n(i.unitCost) + preview : null
                       return (
-                        <tr key={i.id}>
+                        <tr key={i.id} className={selected.has(i.id) ? 'bg-primary/5' : ''}>
+                          {editable && (
+                            <td className="pl-4 py-2.5">
+                              <input type="checkbox" checked={selected.has(i.id)} onChange={() => toggle(i.id)}
+                                aria-label={`Sélectionner ${i.product.name}`} className="accent-primary" />
+                            </td>
+                          )}
                           <td className="px-4 py-2.5">
                             <span className="text-foreground">{i.product.name}</span>
                             <span className="block text-xs text-muted-foreground">stock actuel : {i.product.stock}</span>
@@ -318,13 +396,28 @@ export default function Shipments() {
                               <span className="text-muted-foreground">{i.store?.name ?? '—'}</span>
                             )}
                           </td>
+                          <td className="px-3 py-2.5">
+                            {editable ? (
+                              <select value={i.groupId ?? ''}
+                                onChange={(e) => run(() => api.patch(
+                                  `/gestion/shipments/${open.id}/items/${i.id}`,
+                                  { groupId: e.target.value || null },
+                                ))}
+                                className={`px-2 py-1 rounded-md border text-xs bg-card focus:outline-none focus:ring-2 focus:ring-ring ${i.groupId ? 'border-border' : 'border-warning text-warning'}`}>
+                                <option value="">Sans groupe</option>
+                                {open.groups.map((g) => <option key={g.id} value={g.id}>{g.code}</option>)}
+                              </select>
+                            ) : (
+                              <span className="text-muted-foreground">{group?.code ?? '—'}</span>
+                            )}
+                          </td>
                           <td className="px-3 py-2.5 text-right tabular-nums">{i.quantity}</td>
                           <td className="px-3 py-2.5 text-right tabular-nums">{fcfa(i.unitCost)}</td>
                           <td className={`px-3 py-2.5 text-right tabular-nums ${i.unitShipping == null ? 'text-muted-foreground italic' : ''}`}>
-                            {fcfa(shipping)}
+                            {shipping == null ? '—' : fcfa(shipping)}
                           </td>
                           <td className={`px-3 py-2.5 text-right tabular-nums font-medium ${i.landedCost == null ? 'text-muted-foreground italic' : 'text-foreground'}`}>
-                            {fcfa(landed)}
+                            {landed == null ? '—' : fcfa(landed)}
                           </td>
                           <td className="px-3 py-2.5 text-right">
                             {editable && (
@@ -338,25 +431,28 @@ export default function Shipments() {
                       )
                     })}
                     {!open.items.length && (
-                      <tr><td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Aucune ligne</td></tr>
+                      <tr><td colSpan={editable ? 9 : 8} className="px-4 py-6 text-center text-sm text-muted-foreground">Aucune ligne</td></tr>
                     )}
                   </tbody>
                   {open.items.length > 0 && (
                     <tfoot className="bg-muted/50 text-xs text-muted-foreground">
                       <tr>
+                        {editable && <td />}
                         <td className="px-4 py-2.5 font-medium">Total</td>
+                        <td />
                         <td />
                         <td className="px-3 py-2.5 text-right tabular-nums font-medium">{totalQty(open)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{fcfa(totalPurchase(open))}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{fcfa(open.shippingCost)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{fcfa(totalShipping(open))}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums font-medium text-foreground">
-                          {fcfa(totalPurchase(open) + n(open.shippingCost))}
+                          {fcfa(totalPurchase(open) + totalShipping(open))}
                         </td>
                         <td />
                       </tr>
                     </tfoot>
                   )}
                 </table>
+              </div>
               </div>
 
               {editable && (
@@ -421,12 +517,82 @@ export default function Shipments() {
                 </div>
               )}
 
-              {editable && open.items.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  À la réception : {fcfa(open.shippingCost)} de transport répartis sur {totalQty(open)} article(s),
-                  soit <strong>{fcfa(previewUnitShipping)}</strong> par unité ajoutés au prix d'achat.
+              {/* Groupes */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Groupes</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                  Chaque groupe porte son transport, réparti à l'unité sur ses seuls produits.
                 </p>
-              )}
+
+                {editable && open.items.length > 0 && (
+                  <div className="flex flex-wrap items-end gap-2 mb-3 bg-muted/50 border border-border rounded-lg p-3">
+                    <div className="flex-1 min-w-[10rem]">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Transport du groupe</label>
+                      <input type="number" min="0" value={groupShipping} placeholder="0"
+                        onChange={(e) => setGroupShipping(e.target.value)} className={`${input} py-2 bg-card`} />
+                    </div>
+                    <button onClick={() => createGroup(open)} disabled={busy || !selected.size}
+                      className="flex items-center gap-1.5 px-3 py-2.5 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                      <Layers className="w-4 h-4" />
+                      Créer un groupe{selected.size ? ` avec ${selected.size} produit(s)` : ''}
+                    </button>
+                  </div>
+                )}
+
+                {open.groups.length ? (
+                  <div className="border border-border rounded-xl divide-y divide-border">
+                    {open.groups.map((g) => {
+                      const products = open.items.filter((i) => i.groupId === g.id)
+                      return (
+                        <div key={g.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                          <span className="font-medium text-foreground w-10">{g.code}</span>
+                          <div className="flex-1 min-w-[12rem] text-xs text-muted-foreground">
+                            {products.length
+                              ? products.map((i) => `${i.product.name} ×${i.quantity}`).join(', ')
+                              : <span className="text-warning">Groupe vide</span>}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-muted-foreground">Transport</span>
+                            {editable ? (
+                              <input type="number" min="0" defaultValue={String(n(g.shippingCost))}
+                                key={`${g.id}-${g.shippingCost}`}
+                                onBlur={(e) => {
+                                  const shippingCost = Number(e.target.value || 0)
+                                  if (shippingCost !== n(g.shippingCost)) {
+                                    run(() => api.patch(`/gestion/shipments/${open.id}/groups/${g.id}`, { shippingCost }))
+                                  }
+                                }}
+                                className="w-28 px-2 py-1 rounded-md border border-border text-xs text-right focus:outline-none focus:ring-2 focus:ring-ring" />
+                            ) : (
+                              <span className="tabular-nums text-foreground">{fcfa(g.shippingCost)}</span>
+                            )}
+                            <span className="text-muted-foreground tabular-nums">
+                              · {groupQty(open, g.id)} art. · {fcfa(groupUnitShipping(open, g))}/u
+                            </span>
+                          </div>
+                          {editable && (
+                            <button onClick={() => run(() => api.delete(`/gestion/shipments/${open.id}/groups/${g.id}`))}
+                              title="Supprimer le groupe (les produits restent dans l'arrivage)"
+                              className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground border border-dashed border-border rounded-xl px-4 py-5 text-center">
+                    Aucun groupe
+                  </p>
+                )}
+
+                {editable && ungroupedCount > 0 && (
+                  <p className="text-xs text-warning mt-2">
+                    {ungroupedCount} produit(s) sans groupe : à répartir avant la réception.
+                  </p>
+                )}
+              </div>
 
               {open.status === 'RECEIVED' && (
                 <p className="text-xs text-success bg-emerald-50 rounded-lg px-4 py-3">
@@ -436,10 +602,11 @@ export default function Shipments() {
               )}
             </div>
 
-            {editable && (
+            {open.status !== 'RECEIVED' && (
               <div className="flex flex-wrap gap-3 px-6 py-4 border-t border-border">
+                {editable && (<>
                 <button onClick={() => run(() => api.post(`/gestion/shipments/${open.id}/receive`, {}))}
-                  disabled={busy || !open.items.length}
+                  disabled={busy || !open.items.length || ungroupedCount > 0}
                   className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
                   {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackageCheck className="w-4 h-4" />}
                   Réceptionner
@@ -448,12 +615,8 @@ export default function Shipments() {
                   className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground border border-border rounded-lg hover:bg-accent transition-colors">
                   <Ban className="w-4 h-4" /> Annuler l'arrivage
                 </button>
-                <button
-                  onClick={() => {
-                    if (!confirm(`Supprimer l'arrivage ${open.code} ?`)) return
-                    run(async () => { await api.delete(`/gestion/shipments/${open.id}`); setOpen(null) })
-                  }}
-                  disabled={busy}
+                </>)}
+                <button onClick={() => deleteShipment(open)} disabled={busy}
                   className="flex items-center gap-2 px-4 py-2.5 text-sm text-destructive border border-red-100 rounded-lg hover:bg-destructive/10 transition-colors ml-auto">
                   <Trash2 className="w-4 h-4" /> Supprimer
                 </button>
