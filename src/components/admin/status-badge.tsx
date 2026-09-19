@@ -21,8 +21,9 @@ const ORDER_STATUS: Record<string, StatusDef> = {
 
 /** Statuts d'arrivage. */
 const SHIPMENT_STATUS: Record<string, StatusDef> = {
-  DRAFT:     { variant: 'warning',   label: 'Brouillon' },
-  RECEIVED:  { variant: 'success',   label: 'Réceptionné' },
+  DRAFT:     { variant: 'warning',   label: 'En attente' },
+  PARTIAL:   { variant: 'info',      label: 'Partiel' },
+  RECEIVED:  { variant: 'success',   label: 'Complet' },
   CANCELLED: { variant: 'secondary', label: 'Annulé' },
 }
 
