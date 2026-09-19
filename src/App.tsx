@@ -55,6 +55,7 @@ const AdminTargets = lazy(() => import('./pages/admin/gestion/Targets'))
 const AdminRevenue = lazy(() => import('./pages/admin/gestion/Revenue'))
 const AdminSales = lazy(() => import('./pages/admin/gestion/Sales'))
 const AdminShipments = lazy(() => import('./pages/admin/gestion/Shipments'))
+const AdminShipmentGroups = lazy(() => import('./pages/admin/gestion/ShipmentGroups'))
 const AdminTransfers = lazy(() => import('./pages/admin/gestion/Transfers'))
 const AdminCustomers = lazy(() => import('./pages/admin/gestion/Customers'))
 
@@ -128,6 +129,7 @@ export default function App() {
 
           {/* Le reste de la gestion : les deux niveaux d'administration. */}
           <Route path="gestion/shipments" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminShipments /></ProtectedRoute>} />
+          <Route path="gestion/groups" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminShipmentGroups /></ProtectedRoute>} />
           <Route path="gestion/expenses" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminExpenses /></ProtectedRoute>} />
           <Route path="gestion/stock" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminStock /></ProtectedRoute>} />
           <Route path="gestion/transfers" element={<ProtectedRoute roles={ADMIN_ROLES}><AdminTransfers /></ProtectedRoute>} />

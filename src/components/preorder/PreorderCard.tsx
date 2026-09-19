@@ -41,8 +41,11 @@ export default function PreorderCard({ product }: { product: PreorderProduct }) 
             </svg>
           )}
 
-          {/* Countdown overlay */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur px-3 py-2 rounded shadow-sm">
+          {/* Décompte posé sur l'image — à partir de `sm` seulement : en
+              dessous, la grille est à deux colonnes et le bandeau des quatre
+              blocs chiffrés est plus large que la carte, donc rogné et étalé
+              en travers de la photo. Sur mobile il passe sous l'image. */}
+          <div className="absolute bottom-3 left-1/2 hidden -translate-x-1/2 bg-white/95 backdrop-blur px-3 py-2 rounded shadow-sm sm:block">
             <Countdown releaseDate={product.releaseDate} size="sm" />
           </div>
 
@@ -52,6 +55,12 @@ export default function PreorderCard({ product }: { product: PreorderProduct }) 
 
       {/* Info */}
       <div className="mt-3 space-y-1 flex flex-col flex-1">
+        {/* Pendant mobile du décompte : la pastille compacte du catalogue,
+            qui tient dans une demi-largeur sans masquer le produit. */}
+        <div className="pb-0.5 sm:hidden">
+          <Countdown releaseDate={product.releaseDate} size="inline" />
+        </div>
+
         {/* Le lien s'étend sur toute la carte (pseudo-élément) : image + infos
             cliquables, comme sur les cartes du catalogue. */}
         <Link

@@ -6,7 +6,7 @@ import {
   Users as UsersIcon, MessageSquare, PackageCheck, BellRing, Store as StoreIcon,
   UserRound, Truck, ShoppingCart, TrendingUp, Wallet, Scale, Boxes, Target,
   Gauge, Repeat, KeyRound, Receipt, ExternalLink, PanelLeftClose, PanelLeftOpen,
-  Palette,
+  Palette, Layers,
 } from 'lucide-react'
 import { useState } from 'react'
 import { ToastProvider } from './toast'
@@ -86,6 +86,7 @@ const groups: NavGroupData[] = [
       { id: 'g-revenue', title: 'Recettes', icon: TrendingUp, to: '/admin/gestion/revenue', roles: OWNER_ROLES },
       { id: 'g-balance', title: 'Bilan mensuel', icon: Scale, to: '/admin/gestion/balance', roles: OWNER_ROLES },
       { id: 'g-shipments', title: 'Arrivages', icon: Truck, to: '/admin/gestion/shipments', roles: ADMIN_ROLES },
+      { id: 'g-groups', title: 'Groupes', icon: Layers, to: '/admin/gestion/groups', roles: ADMIN_ROLES },
       { id: 'g-stock', title: 'Stock & marges', icon: Boxes, to: '/admin/gestion/stock', roles: ADMIN_ROLES },
       { id: 'g-transfers', title: 'Transferts', icon: Repeat, to: '/admin/gestion/transfers', roles: ADMIN_ROLES },
       { id: 'g-targets', title: 'Objectifs', icon: Target, to: '/admin/gestion/targets', roles: ADMIN_ROLES },
@@ -159,7 +160,10 @@ function AdminShell() {
     </div>
   )
 
-  const sidebar = (
+  // Le fond de la barre est semi-transparent : posé dans la coquille il se
+  // fond dans la carte, mais le tiroir mobile flotte au-dessus de la page et
+  // doit donc être opaque, sinon le contenu transparaît derrière le menu.
+  const renderSidebar = (className?: string) => (
     <SidebarNav
       groups={groups}
       bottom={bottomItems}
@@ -167,6 +171,7 @@ function AdminShell() {
       header={header}
       onNavigate={() => setDrawer(false)}
       onLogout={handleLogout}
+      className={className}
     />
   )
 
@@ -195,13 +200,13 @@ function AdminShell() {
             collapsed ? 'w-0' : 'w-[260px]',
           )}
         >
-          {sidebar}
+          {renderSidebar()}
         </div>
 
         {/* Mobile : tiroir */}
         {drawer && (
           <div className="fixed inset-0 z-40 flex lg:hidden">
-            <div className="shrink-0">{sidebar}</div>
+            <div className="shrink-0">{renderSidebar('bg-card shadow-xl')}</div>
             <div className="flex-1 bg-black/50" onClick={() => setDrawer(false)} />
           </div>
         )}

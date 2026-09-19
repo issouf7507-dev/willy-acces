@@ -67,8 +67,11 @@ export default function Countdown({ releaseDate, size = 'sm' }: Props) {
     // posé sur une pastille, pour se distinguer de la note en étoiles qu'il
     // remplace.
     return (
+      // Dans une carte de demi-largeur, la pastille ne tient pas sur une ligne
+      // au dernier jour : on laisse les éléments passer à la ligne entiers
+      // plutôt que de couper « Sortie / dans » au milieu.
       <span
-        className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] font-bold text-white"
+        className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] font-bold text-white"
         role="timer"
         aria-label={`Disponible dans ${timeLeft.days} jours ${timeLeft.hours} heures`}
       >
@@ -76,8 +79,8 @@ export default function Countdown({ releaseDate, size = 'sm' }: Props) {
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7v5l3 2" />
         </svg>
-        <span className="uppercase tracking-wide">Sortie dans</span>
-        <span className="tabular-nums">{label}</span>
+        <span className="whitespace-nowrap uppercase tracking-wide">Sortie dans</span>
+        <span className="whitespace-nowrap tabular-nums">{label}</span>
       </span>
     )
   }
