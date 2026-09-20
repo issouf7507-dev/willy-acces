@@ -33,7 +33,7 @@ export default function Shipments() {
   // l'arrivage n'est écrit qu'à l'enregistrement, pour ne pas laisser de
   // brouillons vides derrière un clic d'essai.
   const [creating, setCreating] = useState(false)
-  const [draft, setDraft] = useState({ label: '', storeId: '', customsCost: '' })
+  const [draft, setDraft] = useState({ label: '', storeId: '' })
 
   // Formulaire de nouvelle ligne, dans l'arrivage ouvert. `productId` vaut
   // NEW_PRODUCT quand l'article commandé n'existe pas encore au catalogue : on
@@ -84,21 +84,18 @@ export default function Shipments() {
   }
 
   function startCreate() {
-    setDraft({ label: '', storeId: '', customsCost: '' })
+    setDraft({ label: '', storeId: '' })
     setError('')
     setCreating(true)
   }
 
   async function createShipment() {
-    const customsCost = Number(draft.customsCost || 0)
-    if (!(customsCost >= 0)) { setError('Douane invalide'); return }
     await run(async () => {
       const created = await api.post<Shipment>('/gestion/shipments', {
         // Le libellé reste facultatif : le code (A1, A2…) est attribué par le
         // serveur et suffit à identifier l'arrivage.
         label: draft.label.trim() || undefined,
         storeId: draft.storeId || null,
-        customsCost,
       })
       setCreating(false)
       openShipment(created)
@@ -254,7 +251,7 @@ export default function Shipments() {
               <h2 className="font-semibold text-foreground">Nouvel arrivage</h2>
               <p className="text-xs text-muted-foreground mt-1">
                 Son code (A1, A2…) est attribué à l'enregistrement. Les produits commandés
-                s'ajoutent ensuite, dans la fiche.
+                et la douane du lot s'ajoutent ensuite, dans la fiche.
               </p>
             </div>
 
@@ -273,19 +270,6 @@ export default function Shipments() {
                 <option value="">Aucune — à préciser sur chaque ligne</option>
                 {stores.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Douane de l'arrivage
-              </label>
-              <input type="number" min="0" value={draft.customsCost} placeholder="0"
-                onChange={(e) => setDraft((d) => ({ ...d, customsCost: e.target.value }))}
-                className={input} />
-              <p className="text-[11px] text-muted-foreground mt-1.5">
-                Le dédouanement annoncé pour tout le lot. Prévisionnel : la douane qui entre
-                dans le coût de revient est celle saisie sur chaque groupe, à la réception.
-              </p>
             </div>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -326,7 +310,7 @@ export default function Shipments() {
                 </div>
               )}
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Libellé</label>
                   <input value={open.label ?? ''} disabled={!editable}
@@ -347,30 +331,34 @@ export default function Shipments() {
                     {stores.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Douane de l'arrivage
-                  </label>
-                  <input type="number" min="0" value={open.customsCost ?? ''} disabled={!editable}
-                    placeholder="0"
-                    onChange={(e) => setOpen({ ...open, customsCost: e.target.value })}
-                    onBlur={() => {
-                      if (!editable) return
-                      const customsCost = Number(open.customsCost || 0)
-                      if (!(customsCost >= 0)) { setError('Douane invalide'); return }
-                      run(() => api.patch(`/gestion/shipments/${open.id}`, { customsCost }))
-                    }}
-                    className={`${input} disabled:bg-muted/50 disabled:text-muted-foreground`} />
-                  <p className="text-[11px] text-muted-foreground mt-1.5">
-                    Annoncée pour tout le lot. {fcfa(groupsCustoms(open))} déjà saisis sur ses
-                    groupes : c'est cette douane-là qui entre dans le coût de revient.
-                  </p>
-                </div>
               </div>
 
-              {/* Produits commandés */}
+              {/* Produits commandés, et la douane annoncée pour le lot entier */}
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-2">Produits commandés</h3>
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-2">
+                  <h3 className="text-sm font-semibold text-foreground">Produits commandés</h3>
+                  <div className="sm:text-right">
+                    <label htmlFor="shipment-customs"
+                      className="block text-xs font-medium text-muted-foreground mb-1">
+                      Douane de l'arrivage (tout le lot)
+                    </label>
+                    <input id="shipment-customs" type="number" min="0" placeholder="0"
+                      value={open.customsCost ?? ''} disabled={!editable}
+                      onChange={(e) => setOpen({ ...open, customsCost: e.target.value })}
+                      onBlur={() => {
+                        if (!editable) return
+                        const customsCost = Number(open.customsCost || 0)
+                        if (!(customsCost >= 0)) { setError('Douane invalide'); return }
+                        run(() => api.patch(`/gestion/shipments/${open.id}`, { customsCost }))
+                      }}
+                      className={`${input} sm:w-44 py-2 sm:text-right disabled:bg-muted/50 disabled:text-muted-foreground`} />
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mb-2">
+                  Le dédouanement annoncé pour la commande entière, prévisionnel.
+                  {' '}{fcfa(groupsCustoms(open))} déjà saisis sur ses groupes : c'est cette
+                  douane-là, celle payée à chaque livraison, qui entre dans le coût de revient.
+                </p>
                 <div className="border border-border rounded-xl overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-xs text-muted-foreground">
