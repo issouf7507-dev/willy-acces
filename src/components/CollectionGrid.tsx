@@ -12,14 +12,24 @@ interface Props {
   collections: Collection[]
 }
 
+/**
+ * Décalage vertical en cascade : la 2ᵉ vignette descend un peu, la 3ᵉ un peu
+ * plus, pour casser l'alignement trop sage de la rangée. Rien en dessous de
+ * `md`, où la grille passe sur une colonne et où un décalage ne ferait que
+ * creuser des trous.
+ */
+const STAGGER = ['', 'md:mt-8', 'md:mt-16']
+
 export default function CollectionGrid({ collections }: Props) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-5 md:px-12 pb-10 max-w-[1600px] mx-auto">
-      {collections.map((col) => (
+    // `items-start` : sans lui, les vignettes s'étireraient à la hauteur de la
+    // rangée décalée et perdraient leur format carré.
+    <div className="grid grid-cols-1 md:grid-cols-3 md:items-start gap-3 px-5 md:px-12 pb-10 max-w-[1600px] mx-auto">
+      {collections.map((col, i) => (
         <Link
           key={col.name}
           to={col.href}
-          className="group relative aspect-square overflow-hidden block"
+          className={`group relative aspect-square overflow-hidden block ${STAGGER[i % STAGGER.length]}`}
         >
           {/* Background : image de la catégorie, dégradé sinon */}
           {col.image ? (
