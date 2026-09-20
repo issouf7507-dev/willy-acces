@@ -2,7 +2,7 @@
  * Types et calculs partagés par les pages Arrivages et Groupes.
  *
  * Un arrivage est une commande (A1, A2…) ; chaque livraison qui en arrive
- * forme un groupe (G1, G2…) avec son propre transport.
+ * forme un groupe (G1, G2…) avec son propre transport et sa propre douane.
  */
 
 export type ShipmentStatus = 'DRAFT' | 'PARTIAL' | 'RECEIVED' | 'CANCELLED'
@@ -26,6 +26,8 @@ export interface ShipmentGroupSummary {
   label: string | null
   status: GroupStatus
   shippingCost: string | number
+  /** Douane payée sur cette livraison. */
+  customsCost: string | number
   receivedAt: string | null
   items: { shipmentItemId: string; quantity: number }[]
 }
@@ -34,6 +36,8 @@ export interface Shipment {
   id: string
   code: string
   label: string | null
+  /** Douane annoncée pour le lot entier, prévisionnelle. */
+  customsCost: string | number
   storeId: string | null
   store: { id: string; name: string } | null
   status: ShipmentStatus
@@ -93,6 +97,14 @@ export const receivedQty = (s: Shipment, itemId: string) =>
  */
 export const remainingQty = (s: Shipment, item: ShipmentItem, exceptGroupId?: string) =>
   item.quantity - sumFor(s.groups.filter((g) => g.id !== exceptGroupId), item.id)
+
+/**
+ * Douane déjà saisie sur les groupes du lot, brouillons compris. À comparer à
+ * la douane annoncée sur l'arrivage : seule celle des groupes entre dans le
+ * coût de revient.
+ */
+export const groupsCustoms = (s: Shipment) =>
+  s.groups.reduce((sum, g) => sum + n(g.customsCost), 0)
 
 export const orderedTotal = (s: Shipment) => s.items.reduce((sum, i) => sum + i.quantity, 0)
 export const receivedTotal = (s: Shipment) => s.items.reduce((sum, i) => sum + receivedQty(s, i.id), 0)

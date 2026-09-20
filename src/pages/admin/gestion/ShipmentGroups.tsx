@@ -5,7 +5,7 @@ import {
   Plus, Trash2, Loader2, Layers, PackageCheck, ChevronRight, AlertTriangle, Save,
 } from 'lucide-react'
 import {
-  type Shipment, type GroupStatus, GROUP_BADGE, GROUP_LABEL,
+  type Shipment, type ShipmentItem, type GroupStatus, GROUP_BADGE, GROUP_LABEL,
   input, n, fcfa, isOpen, remainingQty,
 } from './shipment-utils'
 
@@ -14,6 +14,7 @@ interface GroupLine {
   shipmentItemId: string
   quantity: number
   unitShipping: string | number | null
+  unitCustoms: string | number | null
   landedCost: string | number | null
   shipmentItem: {
     id: string
@@ -30,6 +31,7 @@ interface Group {
   label: string | null
   status: GroupStatus
   shippingCost: string | number
+  customsCost: string | number
   receivedAt: string | null
   createdAt: string
   shipmentId: string
@@ -39,13 +41,19 @@ interface Group {
 
 /**
  * Livraison en cours de saisie : nouvelle (`groupId` absent) ou brouillon
- * existant. `qty` associe chaque ligne commandée à la quantité livrée saisie.
+ * existant. Le groupe ne porte jamais que sur `shipmentId` : un arrivage
+ * compte plusieurs groupes, un groupe un seul arrivage.
+ *
+ * `qty` ne contient que les lignes **choisies** pour ce groupe : une clé
+ * présente vaut produit coché, son absence produit hors du groupe.
  */
 interface Draft {
   groupId?: string
   shipmentId: string
   label: string
   shippingCost: string
+  /** Douane payée sur cette livraison, pas celle annoncée pour tout le lot. */
+  customsCost: string
   qty: Record<string, string>
 }
 
@@ -98,15 +106,42 @@ export default function ShipmentGroups() {
   )
   const draftShipment = draft ? shipments.find((s) => s.id === draft.shipmentId) ?? null : null
 
-  /** Nouvelle livraison : tout le reste à recevoir est proposé par défaut. */
+  /**
+   * Nouvelle livraison : aucun produit coché. C'est le client qui désigne, dans
+   * les seuls produits de l'arrivage choisi, ceux qui sont arrivés.
+   */
   function startNew(s: Shipment | null) {
     setError('')
     setViewing(null)
+    setDraft({ shipmentId: s?.id ?? '', label: '', shippingCost: '', customsCost: '', qty: {} })
+  }
+
+  /**
+   * Coche ou décoche un produit de l'arrivage. Cochée, la ligne arrive avec
+   * tout son reste à recevoir — quantité ensuite ajustable ; décochée, elle
+   * sort du groupe.
+   */
+  function toggleLine(item: ShipmentItem, remaining: number) {
+    if (!draft) return
+    const qty = { ...draft.qty }
+    if (item.id in qty) delete qty[item.id]
+    else qty[item.id] = String(remaining)
+    setDraft({ ...draft, qty })
+  }
+
+  /** Coche tout ce qui reste à recevoir sur l'arrivage, ou vide la sélection. */
+  function toggleAll(s: Shipment, all: boolean) {
+    if (!draft) return
     setDraft({
-      shipmentId: s?.id ?? '',
-      label: '',
-      shippingCost: '',
-      qty: s ? Object.fromEntries(s.items.map((i) => [i.id, String(remainingQty(s, i))])) : {},
+      ...draft,
+      qty: all
+        ? Object.fromEntries(
+            s.items
+              .map((i) => [i.id, remainingQty(s, i, draft.groupId)] as const)
+              .filter(([, remaining]) => remaining > 0)
+              .map(([id, remaining]) => [id, String(remaining)]),
+          )
+        : {},
     })
   }
 
@@ -123,6 +158,7 @@ export default function ShipmentGroups() {
       shipmentId: g.shipmentId,
       label: g.label ?? '',
       shippingCost: String(n(g.shippingCost)),
+      customsCost: String(n(g.customsCost)),
       qty: Object.fromEntries(g.items.map((l) => [l.shipmentItemId, String(l.quantity)])),
     })
   }
@@ -147,15 +183,20 @@ export default function ShipmentGroups() {
 
   /** Enregistre la livraison saisie ; renvoie son id. */
   async function save(d: Draft): Promise<string> {
-    const items = Object.entries(d.qty)
-      .map(([shipmentItemId, q]) => ({ shipmentItemId, quantity: Number(q || 0) }))
-      .filter((l) => l.quantity > 0)
-    if (items.some((l) => !Number.isInteger(l.quantity))) throw new Error('Quantités invalides')
-    if (!items.length) throw new Error('Indiquez au moins une quantité reçue')
+    const items = Object.entries(d.qty).map(([shipmentItemId, q]) => ({
+      shipmentItemId,
+      quantity: Number(q || 0),
+    }))
+    if (!items.length) throw new Error('Choisissez au moins un produit de l’arrivage')
+    if (items.some((l) => !Number.isInteger(l.quantity) || l.quantity <= 0)) {
+      throw new Error('Indiquez une quantité reçue pour chaque produit coché')
+    }
     const shippingCost = Number(d.shippingCost || 0)
     if (!(shippingCost >= 0)) throw new Error('Coût de transport invalide')
+    const customsCost = Number(d.customsCost || 0)
+    if (!(customsCost >= 0)) throw new Error('Douane invalide')
 
-    const body = { label: d.label, shippingCost, items }
+    const body = { label: d.label, shippingCost, customsCost, items }
     if (d.groupId) {
       await api.patch(`/gestion/shipment-groups/${d.groupId}`, body)
       return d.groupId
@@ -182,11 +223,21 @@ export default function ShipmentGroups() {
     run(async () => { await api.delete(`/gestion/shipment-groups/${g.id}`); close() })
   }
 
-  // Aperçu du coût : le transport de la livraison réparti sur ses articles.
+  // Produits de l'arrivage encore livrables, et état de la sélection.
+  const pickable = draftShipment
+    ? draftShipment.items.filter((i) => remainingQty(draftShipment, i, draft?.groupId) > 0)
+    : []
+  const pickedCount = draft ? Object.keys(draft.qty).length : 0
+  const allPicked = pickable.length > 0 && pickable.every((i) => !!draft && i.id in draft.qty)
+
+  // Aperçu du coût : transport et douane de la livraison répartis à l'unité
+  // sur ses seuls articles, comme le fera la réception.
   const draftTotal = draft
     ? Object.values(draft.qty).reduce((sum, q) => sum + (Number(q) > 0 ? Number(q) : 0), 0)
     : 0
   const draftUnitShipping = draftTotal > 0 ? Number(draft?.shippingCost || 0) / draftTotal : 0
+  const draftUnitCustoms = draftTotal > 0 ? Number(draft?.customsCost || 0) / draftTotal : 0
+  const draftUnitExtra = draftUnitShipping + draftUnitCustoms
 
   return (
     <div className="p-6 lg:p-8">
@@ -195,7 +246,8 @@ export default function ShipmentGroups() {
           <h1 className="text-2xl font-bold text-foreground">Groupes</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Chaque livraison d'un <Link to="/admin/gestion/shipments" className="underline hover:text-foreground">arrivage</Link>{' '}
-            forme un groupe, avec son transport. Le stock est crédité à sa réception.
+            forme un groupe, avec son transport et sa douane. Le stock est crédité à sa réception.
+            Un arrivage peut compter plusieurs groupes, mais un groupe ne concerne qu'un seul arrivage.
           </p>
         </div>
         <button onClick={() => startNew(openShipments.length === 1 ? openShipments[0] : null)}
@@ -243,7 +295,7 @@ export default function ShipmentGroups() {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {groupQty(g)} article(s) · transport {fcfa(g.shippingCost)}
+                      {groupQty(g)} article(s) · transport {fcfa(g.shippingCost)} · douane {fcfa(g.customsCost)}
                       {g.receivedAt ? ` · reçu le ${new Date(g.receivedAt).toLocaleDateString('fr-FR')}` : ''}
                     </p>
                   </div>
@@ -285,7 +337,7 @@ export default function ShipmentGroups() {
                 </div>
               )}
 
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Arrivage</label>
                   <select value={draft.shipmentId} disabled={!!draft.groupId}
@@ -299,11 +351,29 @@ export default function ShipmentGroups() {
                       <option key={s.id} value={s.id}>{s.code}{s.label ? ` — ${s.label}` : ''}</option>
                     ))}
                   </select>
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    {draft.groupId
+                      ? 'L’arrivage d’un groupe ne change plus après sa création.'
+                      : 'Un seul arrivage par groupe : changer d’arrivage vide la sélection.'}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Transport de la livraison</label>
                   <input type="number" min="0" value={draft.shippingCost} placeholder="0"
                     onChange={(e) => setDraft({ ...draft, shippingCost: e.target.value })} className={input} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">Douane de la livraison</label>
+                  <input type="number" min="0" value={draft.customsCost} placeholder="0"
+                    onChange={(e) => setDraft({ ...draft, customsCost: e.target.value })} className={input} />
+                  {draftShipment && (
+                    <p className="text-[11px] text-muted-foreground mt-1.5">
+                      Ce qui a été payé au dédouanement de <strong>ce</strong> groupe.
+                      {n(draftShipment.customsCost) > 0
+                        ? ` Arrivage ${draftShipment.code} : ${fcfa(draftShipment.customsCost)} annoncés pour le lot entier.`
+                        : ''}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">Libellé</label>
@@ -317,30 +387,45 @@ export default function ShipmentGroups() {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-xs text-muted-foreground">
                       <tr>
-                        <th className="text-left font-medium px-4 py-2.5">Produit</th>
+                        <th className="w-10 px-4 py-2.5">
+                          <input type="checkbox" checked={allPicked} disabled={!pickable.length}
+                            onChange={(e) => toggleAll(draftShipment, e.target.checked)}
+                            title="Tout sélectionner" aria-label="Sélectionner tous les produits livrables"
+                            className="w-4 h-4 rounded border-border accent-primary align-middle disabled:opacity-40" />
+                        </th>
+                        <th className="text-left font-medium px-2 py-2.5">Produit</th>
                         <th className="text-left font-medium px-3 py-2.5">Boutique</th>
                         <th className="text-right font-medium px-3 py-2.5">Commandé</th>
                         <th className="text-right font-medium px-3 py-2.5">Reste</th>
                         <th className="text-right font-medium px-3 py-2.5">Reçu ici</th>
                         <th className="text-right font-medium px-3 py-2.5">Achat/u</th>
                         <th className="text-right font-medium px-3 py-2.5">Transport/u</th>
+                        <th className="text-right font-medium px-3 py-2.5">Douane/u</th>
                         <th className="text-right font-medium px-3 py-2.5">Revient/u</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {draftShipment.items.map((i) => {
                         const remaining = remainingQty(draftShipment, i, draft.groupId)
+                        const picked = i.id in draft.qty
                         const q = Number(draft.qty[i.id] || 0)
                         const over = q > remaining
                         return (
-                          <tr key={i.id} className={remaining === 0 && !q ? 'opacity-50' : ''}>
-                            <td className="px-4 py-2.5 text-foreground">{i.product.name}</td>
+                          <tr key={i.id}
+                            className={`${picked ? 'bg-primary/5' : ''} ${remaining === 0 && !picked ? 'opacity-50' : ''}`}>
+                            <td className="px-4 py-2.5">
+                              <input type="checkbox" checked={picked} disabled={remaining === 0 && !picked}
+                                onChange={() => toggleLine(i, remaining)}
+                                aria-label={`Inclure ${i.product.name} dans ce groupe`}
+                                className="w-4 h-4 rounded border-border accent-primary align-middle disabled:opacity-40" />
+                            </td>
+                            <td className="px-2 py-2.5 text-foreground">{i.product.name}</td>
                             <td className="px-3 py-2.5 text-muted-foreground">{i.store?.name}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{i.quantity}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums">{remaining}</td>
                             <td className="px-3 py-2.5 text-right">
-                              <input type="number" min="0" max={remaining} value={draft.qty[i.id] ?? ''}
-                                disabled={remaining === 0}
+                              <input type="number" min="1" max={remaining} value={draft.qty[i.id] ?? ''}
+                                disabled={!picked} placeholder="—"
                                 onChange={(e) => setDraft({ ...draft, qty: { ...draft.qty, [i.id]: e.target.value } })}
                                 aria-label={`Quantité reçue de ${i.product.name}`}
                                 className={`w-20 px-2 py-1 rounded-md border text-right text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:bg-muted/50 ${over ? 'border-destructive text-destructive' : 'border-border'}`} />
@@ -349,8 +434,11 @@ export default function ShipmentGroups() {
                             <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground italic">
                               {q > 0 ? fcfa(draftUnitShipping) : '—'}
                             </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground italic">
+                              {q > 0 ? fcfa(draftUnitCustoms) : '—'}
+                            </td>
                             <td className="px-3 py-2.5 text-right tabular-nums font-medium">
-                              {q > 0 ? fcfa(n(i.unitCost) + draftUnitShipping) : '—'}
+                              {q > 0 ? fcfa(n(i.unitCost) + draftUnitExtra) : '—'}
                             </td>
                           </tr>
                         )
@@ -360,21 +448,30 @@ export default function ShipmentGroups() {
                 </div>
               )}
 
-              {draftShipment && draftTotal > 0 && (
+              {draftShipment && (
                 <p className="text-xs text-muted-foreground">
-                  {fcfa(draft.shippingCost)} de transport répartis sur {draftTotal} article(s), soit{' '}
-                  <strong>{fcfa(draftUnitShipping)}</strong> par unité ajoutés au prix d'achat.
+                  {pickedCount === 0
+                    ? 'Cochez les produits de cet arrivage qui sont arrivés dans ce groupe.'
+                    : `${pickedCount} produit(s) choisi(s) sur les ${draftShipment.items.length} de l’arrivage ${draftShipment.code}, ${draftTotal} article(s) au total.`}
+                  {draftTotal > 0 && (
+                    <>
+                      {' '}{fcfa(draft.shippingCost)} de transport et {fcfa(draft.customsCost)} de douane
+                      répartis sur ces {draftTotal} article(s), soit{' '}
+                      <strong>{fcfa(draftUnitExtra)}</strong> par unité ajoutés au prix d'achat
+                      ({fcfa(draftUnitShipping)} + {fcfa(draftUnitCustoms)}).
+                    </>
+                  )}
                 </p>
               )}
             </div>
 
             <div className="flex flex-wrap gap-3 px-6 py-4 border-t border-border">
-              <button onClick={() => saveAndReceive(draft)} disabled={busy || !draftShipment || draftTotal === 0}
+              <button onClick={() => saveAndReceive(draft)} disabled={busy || !draftShipment || pickedCount === 0}
                 className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors">
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackageCheck className="w-4 h-4" />}
                 Réceptionner
               </button>
-              <button onClick={() => saveDraft(draft)} disabled={busy || !draftShipment || draftTotal === 0}
+              <button onClick={() => saveDraft(draft)} disabled={busy || !draftShipment || pickedCount === 0}
                 title="Garder la livraison en brouillon, sans toucher au stock"
                 className="flex items-center gap-2 px-4 py-2.5 text-sm text-foreground border border-border rounded-lg hover:bg-accent disabled:opacity-50 transition-colors">
                 <Save className="w-4 h-4" /> Enregistrer en brouillon
@@ -408,6 +505,7 @@ export default function ShipmentGroups() {
               <p className="text-sm text-muted-foreground">
                 Arrivage <strong className="text-foreground">{viewing.shipment.code}</strong>
                 {viewing.label ? ` · ${viewing.label}` : ''} · transport {fcfa(viewing.shippingCost)}
+                {' '}· douane {fcfa(viewing.customsCost)}
                 {viewing.receivedAt ? ` · reçu le ${new Date(viewing.receivedAt).toLocaleDateString('fr-FR')}` : ''}
               </p>
               <div className="border border-border rounded-xl overflow-x-auto">
@@ -419,6 +517,7 @@ export default function ShipmentGroups() {
                       <th className="text-right font-medium px-3 py-2.5">Qté</th>
                       <th className="text-right font-medium px-3 py-2.5">Achat/u</th>
                       <th className="text-right font-medium px-3 py-2.5">Transport/u</th>
+                      <th className="text-right font-medium px-3 py-2.5">Douane/u</th>
                       <th className="text-right font-medium px-3 py-2.5">Revient/u</th>
                     </tr>
                   </thead>
@@ -430,6 +529,7 @@ export default function ShipmentGroups() {
                         <td className="px-3 py-2.5 text-right tabular-nums">{l.quantity}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{fcfa(l.shipmentItem.unitCost)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{fcfa(l.unitShipping)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{fcfa(l.unitCustoms)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums font-medium text-foreground">{fcfa(l.landedCost)}</td>
                       </tr>
                     ))}
